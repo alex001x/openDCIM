@@ -5977,52 +5977,53 @@ msgstr "alertes des prises électriques"
 #: openDCIM/cdu_templates.php:146 openDCIM/device_templates.php:991
 #, fuzzy
 msgid "Outlet Factory Name"
-msgstr "Statut de la prise"
+msgstr "Nom / Etiquette de la prise"
 
 #: openDCIM/cdu_templates.php:150 openDCIM/device_templates.php:995
 #, fuzzy
 msgid "Outlet User Description"
-msgstr "Description"
+msgstr "Description / Prise OID"
 
 #: openDCIM/cdu_templates.php:154 openDCIM/device_templates.php:999
 #, fuzzy
 msgid "Outlet Count"
-msgstr "Statut de la prise"
+msgstr "Total prise lu OID"
 
 #: openDCIM/cdu_templates.php:158 openDCIM/device_templates.php:1003
 #, fuzzy
 msgid "Outlet State (On/Off)"
-msgstr "Statut de la prise"
+msgstr "Statut prise (On/Off) OID"
 
+#. Valeur retourné de la lecture OID SNMP ex: 1
 #: openDCIM/cdu_templates.php:162 openDCIM/device_templates.php:1007
 #, fuzzy
 msgid "Outlet State (On)"
-msgstr "Statut de la prise"
+msgstr "Valeur lu pour (On)"
 
 #: openDCIM/configuration.php:1761
 #, fuzzy
 msgid "OIDC/LDAP"
-msgstr "LDAP"
+msgstr "OIDC/LDAP"
 
 #: openDCIM/configuration.php:1764
 #, fuzzy
 msgid "Credits"
-msgstr "Audits"
+msgstr "A propos de"
 
 #: openDCIM/configuration.php:2431
 #, fuzzy
 msgid "Authentication Attribute Mapping"
-msgstr "Cartographie"
+msgstr "Configuration de l'authentification"
 
 #: openDCIM/configuration.php:2458
 #, fuzzy
 msgid "Group/Scope Mapping"
-msgstr "Mappage des groupes LDAP"
+msgstr "Configurations des groupes"
 
 #: openDCIM/configuration.php:2507
 #, fuzzy
 msgid "OIDC Connection Configuration"
-msgstr "Configuration du centre informatique"
+msgstr "Configuration OIDC"
 
 #: openDCIM/configuration.php:2510
 #, fuzzy
@@ -6040,7 +6041,7 @@ msgstr "OIDC Client Secret"
 #: openDCIM/devices.php:2171
 #, fuzzy
 msgid "Goto Panel"
-msgstr "Panneau de brassage"
+msgstr "Tableau électrique"
 
 #: openDCIM/login_ldap.php:148
 msgid "LDAP search error, did not return a valid resource."
@@ -6062,5 +6063,4 @@ msgstr "Test Email from openDCIM"
 
 #: openDCIM/misc.inc.php:1227
 msgid "Fuck Putin"
-msgstr ""
-
+msgstr "Zut Alors"
