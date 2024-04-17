@@ -1308,7 +1308,7 @@ $(document).ready(function() {
 	$('#deviceimages > div > img').
 		on('error',function(){$(this).hide();toggledeviceimages();}).
 		on('load',function(e){
-			if($(this).width < $(this).height){
+			if($(this).width() < $(this).height()){
 				$(this).css({'height':'275px','width':'auto'});
 			}else{
 				$(this).css({'height':'','width':''});
