@@ -94,7 +94,8 @@
 	 
 		if(strlen($dc->DrawingFileName)>0){
 			$mapfile=$config->ParameterArray["drawingpath"] . $dc->DrawingFileName;
-			$layerImage = $mapfile . ".calque1.png"; // Chemin vers l'image de calque
+			$layerImage1 = $mapfile . ".calque1.png"; // Chemin vers l'image de calque 1
+			$layerImage2 = $mapfile . ".calque2.png"; // Chemin vers l'image de calque 2
 			if(file_exists($mapfile)){
 				if(mime_content_type($mapfile)=='image/svg+xml'){
 					$svgfile = simplexml_load_file($mapfile);
@@ -104,7 +105,8 @@
 					list($width, $height, $type, $attr)=getimagesize($mapfile);
 				}
 				$mapHTML="<div class=\"canvas\" style=\"background-image: url('".urlencode($mapfile)."')\">
-	<img id=\"calc1Id\" src=\"".htmlspecialchars(urlencode($layerImage))."\" style=\"position: absolute; top: 0; left: 0; display: none;\" alt=\"Calque des câbles\" />
+	<img id=\"calc1Id\" src=\"".htmlspecialchars(urlencode($layerImage1))."\" style=\"position: absolute; top: 0; left: 0; display: none;\" alt=\"Calque des câbles\" />
+	<img id=\"calc2Id\" src=\"".htmlspecialchars(urlencode($layerImage2))."\" style=\"position: absolute; top: 0; left: 0; display: none;\" alt=\"Calque du courant fort\" />
 	<img src=\"css/blank.gif\" usemap=\"#datacenter\" width=\"$width\" height=\"$height\" alt=\"clearmap over canvas\">
 	<map name=\"datacenter\" data-dc=$dc->DataCenterID data-zoom=1 data-x1=0 data-y1=0>
 	</map>
@@ -296,7 +298,10 @@ echo '<div class="main">
 </div> <!-- END div.table -->
 </div> <!-- END div.centermargin -->
 <br>
-<div id="maptitle"><button id="toggleLayer"> Afficher/Cacher le calque du chemin de câbles </button><span></span><div class="nav">';
+<div id="maptitle">
+	<button id="toggleLayer1"> Afficher/Cacher le calque du chemin de câbles </button>
+	<button id="toggleLayer2"> Afficher/Cacher le calque du courant fort </button>
+<span></span><div class="nav">';
 
 $select="\n\t<select>\n";
 	foreach(array(
@@ -314,11 +319,6 @@ $select="\n\t<select>\n";
 $select.="\t</select>\n";
 
 echo $select."</div></div><br><br>\n<div>".MakeImageMap($dc)."</div>";
-// Assumez que $mapfile contient le chemin vers l'image de base, par exemple "images/datacenter/salle1.png"
-//$layerImage = str_replace(".png", ".calque1.png", $mapfile); // Cela ajoutera ".calque1.png" avant l'extension ".png"$mapfile
-$layerImage = $mapfile . ".calque1.png";
-// Ajoutez cette ligne pour afficher l'image de calque (remplacez 'layerId' par un ID unique si nécessaire)
-echo "<img id=\"calc1Id\" src=\"".htmlspecialchars(urlencode($layerImage))."\" style=\"display: none;\" alt=\"Calque des câbles\" />";
 
 echo '
 </div></div>
@@ -427,14 +427,24 @@ echo '
 		opentree();
 	});
 	// script pour afficher l'image calques png
-	document.getElementById('toggleLayer').addEventListener('click', function() {
-    var layer = document.getElementById('calc1Id'); // Remplacez 'yourLayerId' par l'ID de votre calque
+	document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('toggleLayer1').addEventListener('click', function() {
+        toggleLayer('calc1Id');
+    });
+    document.getElementById('toggleLayer2').addEventListener('click', function() {
+        toggleLayer('calc2Id');
+    });
+});
+
+function toggleLayer(layerId) {
+    var layer = document.getElementById(layerId);
     if (layer.style.display === 'none') {
         layer.style.display = 'block';
     } else {
         layer.style.display = 'none';
     }
-	});
+}
+
 </script>
 <script type="text/javascript">
     
