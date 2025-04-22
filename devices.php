@@ -1952,7 +1952,7 @@ echo '
 	<legend>',__("Physical Infrastructure"),'</legend>
 	<div class="table">
 		<div>
-			<div><label for="CabinetID">',__("Cabinet"),'</label></div>';
+			<div><label for="CabinetID"><a href=cabnavigator.php?cabinetid=',$cab->CabinetID,'">',__("Cabinet"),'</a></label></div>';
 
 		if($dev->ParentDevice==0){
 			print "\t\t\t<div>".$cab->GetCabinetSelectList()."</div>\n";
@@ -1960,7 +1960,7 @@ echo '
 			print "\t\t\t<div>$cab->Location<input type=\"hidden\" name=\"CabinetID\" value=$cab->CabinetID></div>
 		</div>
 		<div>
-			<div><label for=\"ParentDevice\">".__("Parent Device")."</label></div>
+			<div><label for=\"ParentDevice\"><a href=\"devices.php?DeviceID={$dev->ParentDevice}\">".__("Parent Device")."</a></label></div>
 			<div><select name=\"ParentDevice\">\n";
 
 			foreach($parentList as $parDev){
@@ -1972,7 +1972,7 @@ echo '
 
 echo '		</div>
 		<div>
-			<div><label for="TemplateID">',__("Device Class"),'</label></div>
+			<div><label for="TemplateID"><a href=device_templates.php?TemplateID=',$dev->TemplateID,'">',__("Device Class"),'</a></label></div>
 			<div><select name="TemplateID" id="TemplateID">
 				<option value=0>',__("Select a template..."),'</option>';
 
