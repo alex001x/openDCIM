@@ -43,7 +43,7 @@
 		exit;
 	}
 
-	if(!$person->WriteAccess){
+	if(!$person->SiteAdmin && !$person->AdminTemplateModel){
 		// No soup for you.
 		header('Location: '.redirect());
 		exit;

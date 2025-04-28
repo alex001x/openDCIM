@@ -977,7 +977,7 @@ if(($person->Disabled || ($person->PersonID==0 && $person->UserID!="cli_admin"))
  *
  */
 
-$menu=$rmenu=$rrmenu=$camenu=$wamenu=$samenu=$lmenu=array();
+$menu=$rmenu=$rrmenu=$camenu=$wamenu=$samenu=$atmmenu=$lmenu=array();
 
 $rmenu[]='<a href="reports.php"><span>'.__("Reports").'</span></a>';
 if($config->ParameterArray["WorkOrderBuilder"] == 'enabled' && isset($_COOKIE['workOrder']) && $_COOKIE['workOrder']!='[0]'){
@@ -995,9 +995,9 @@ if ( $person->ContactAdmin ) {
 	$camenu[]='<a href="project_mgr.php"><span>'.__("Project Catalog").'</span></a>';
 }
 if ( $person->WriteAccess ) {
-	$wamenu[__("Template Management")][]='<a href="device_templates.php"><span>'.__("Edit Device Templates").'</span></a>';
+	//$wamenu[__("Template Management")][]='<a href="device_templates.php"><span>'.__("Edit Device Templates").'</span></a>';
 	$wamenu[__("Infrastructure Management")][]='<a href="cabinets.php"><span>'.__("Edit Cabinets").'</span></a>';
-	$wamenu[__("Template Management")][]='<a href="image_management.php#pictures"><span>'.__("Device Image Management").'</span></a>';
+	//$wamenu[__("Template Management")][]='<a href="image_management.php#pictures"><span>'.__("Device Image Management").'</span></a>';
 }
 if ($person->BulkOperations) {
 	$wamenu[__("Bulk Importer")][]='<a href="bulk_container.php"><span>'.__("Import Container/Datacenter/Zone/Row").'</span></a>';
@@ -1025,6 +1025,13 @@ if ( $person->SiteAdmin ) {
 	$samenu[__("Path Connections")][]='<a href="paths.php"><span>'.__("View Path Connection").'</span></a>';
 	$samenu[__("Path Connections")][]='<a href="pathmaker.php"><span>'.__("Make Path Connection").'</span></a>';
 	$samenu[]='<a href="configuration.php"><span>'.__("Edit Configuration").'</span></a>';
+}
+if ( $person->AdminTemplateModel) {
+	$atmmenu[]='<a href="template_model.php"><span>'.__("Template Model").'</span></a>';
+	$atmmenu[]='<a href="device_manufacturers.php"><span>'.__("Edit Manufacturers").'</span></a>';
+}
+if ( $person->AdminImage ) {
+	$atmmenu[]='<a href="image_management.php#pictures"><span>'.__("Device Image Management").'</span></a>';
 }
 if( AUTHENTICATION == "LDAP" ) {
 	// Clear out the Reports menu button and create the Login menu button when not logged in

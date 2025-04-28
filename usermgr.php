@@ -47,6 +47,8 @@
 			$userRights->RackAdmin=(isset($_POST['RackAdmin']))?1:0;
 			$userRights->BulkOperations=(isset($_POST['BulkOperations']))?1:0;
 			$userRights->SiteAdmin=(isset($_POST['SiteAdmin']))?1:0;
+			$userRights->AdminTemplateModel=isset($_POST['AdminTemplateModel'])?1:0;
+			$userRights->AdminImage=isset($_POST['AdminImage'])?1:0;
 			$userRights->Disabled=(isset($_POST['Disabled']))?1:0;
 
 			if($_POST['action']=='Create'){
@@ -87,6 +89,8 @@
 	$RackAdmin=($userRights->RackAdmin)?"checked":"";
 	$BulkOperations=($userRights->BulkOperations)?"checked":"";
 	$admin=($userRights->SiteAdmin)?"checked":"";
+	$adminTemplateModel=($userRights->AdminTemplateModel)?"checked":"";
+	$adminImage=($userRights->AdminImage)?"checked":"";
 	$Disabled=($userRights->Disabled)?"checked":"";
 
 ?>
@@ -328,8 +332,10 @@ echo '	</select>&nbsp;&nbsp;<span title="',__("This user is the primary contact 
 	<input name="RackAdmin" id="RackAdmin" type="checkbox" ',$RackAdmin,'><label for="RackAdmin">',__("Complete Rack Requests"),'</label><br>
 	<input name="BulkOperations" id="BulkOperations" type="checkbox" ',$BulkOperations,'><label for="BulkOperations">',__("Perform Bulk Operations"),'</label><br>
 	<input name="SiteAdmin" id="SiteAdmin" type="checkbox" ',$admin,'><label for="SiteAdmin">',__("Manage Site and Users"),'</label><br>
+	<input name="AdminTemplateModel" id="AdminTemplateModel" type="checkbox" ',$adminTemplateModel,'><label for="AdminTemplateModel">',__("Admin Template Model"),'</label><br>
+	<input name="AdminImage" id="AdminImage" type="checkbox" ',$adminImage,'><label for="AdminImage">',__("Admin Image"),'</label><br>
 	<input name="Disabled" id="Disabled" type="checkbox" ',$Disabled,'><label for="Disabled">',__("Disabled"),'</label><br>	
-   </div>
+	</div>
 </div>
 <div class="caption" id="controls">';
 

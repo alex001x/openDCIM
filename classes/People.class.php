@@ -48,6 +48,8 @@ class People {
 	var $RackAdmin;
 	var $BulkOperations;
 	var $SiteAdmin;
+	var $AdminTemplateModel;
+	var $AdminImage;
 	var $APIKey;
 	var $Disabled;
 	var $LastActivity;
@@ -71,6 +73,8 @@ class People {
 		$this->RackAdmin=intval($this->RackAdmin);
 		$this->BulkOperations=intval($this->BulkOperations);
 		$this->SiteAdmin=intval($this->SiteAdmin);
+		$this->AdminTemplateModel=intval($this->AdminTemplateModel);
+		$this->AdminImage=intval($this->AdminImage);
 		$this->Disabled=intval($this->Disabled);
 		$this->ExpirationDate=sanitize($this->ExpirationDate);
 	}
@@ -95,6 +99,8 @@ class People {
 		$this->RackAdmin=intval($this->RackAdmin);
 		$this->BulkOperations=intval($this->BulkOperations);
 		$this->SiteAdmin=intval($this->SiteAdmin);
+		$this->AdminTemplateModel=intval($this->AdminTemplateModel);
+		$this->AdminImage=intval($this->AdminImage);
 		$this->Disabled=intval($this->Disabled);
 	}
 
@@ -117,6 +123,8 @@ class People {
 		$person->RackAdmin=$row["RackAdmin"];
 		$person->BulkOperations=$row["BulkOperations"];
 		$person->SiteAdmin=$row["SiteAdmin"];
+		$person->AdminTemplateModel=$row["AdminTemplateModel"];
+		$person->AdminImage=$row["AdminImage"];
 		$person->APIKey=$row["APIKey"];
 		$person->Disabled=$row["Disabled"];
 		$person->LastActivity=$row["LastActivity"];
@@ -164,6 +172,8 @@ class People {
 		$this->ContactAdmin = false;
 		$this->BulkOperations = false;
 		$this->SiteAdmin = false;
+		$this->AdminTemplateModel = false;
+		$this->AdminImage = false;
 	}
 
 	function canRead( $Owner ) {
@@ -209,6 +219,7 @@ class People {
 			WriteAccess=$this->WriteAccess, DeleteAccess=$this->DeleteAccess, 
 			ContactAdmin=$this->ContactAdmin, RackRequest=$this->RackRequest, 
 			RackAdmin=$this->RackAdmin, BulkOperations=$this->BulkOperations, SiteAdmin=$this->SiteAdmin,
+			AdminTemplateModel=$this->AdminTemplateModel, AdminImage=$this->AdminImage,
 			APIKey=\"$this->APIKey\", Disabled=$this->Disabled, ExpirationDate=\"$this->ExpirationDate\";";
 
 		if(!$this->query($sql)){
@@ -233,6 +244,8 @@ class People {
 			$cperson->ReadAccess=true;
 			$cperson->WriteAccess=true;
 			$cperson->SiteAdmin=true;
+			$cperson->AdminTemplateModel=true;
+			$cperson->AdminImage=true;
 			$cperson->Disabled=false;
 		}elseif(AUTHENTICATION=="Apache"){
 			if(!isset($_SERVER["REMOTE_USER"])){
@@ -452,6 +465,7 @@ class People {
 			WriteAccess=$this->WriteAccess, DeleteAccess=$this->DeleteAccess, 
 			ContactAdmin=$this->ContactAdmin, RackRequest=$this->RackRequest, 
 			RackAdmin=$this->RackAdmin, BulkOperations=$this->BulkOperations, SiteAdmin=$this->SiteAdmin,
+			AdminUsers=$this->AdminTemplateModel, AdminDevices=$this->AdminImage,
 			APIKey=\"$this->APIKey\", ExpirationDate=\"$formattedDate\", Disabled=$this->Disabled
 			WHERE PersonID=$this->PersonID;";
 			
