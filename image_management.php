@@ -117,7 +117,7 @@ $(document).ready(function(){
 }
 
 // Only show the site drawings if they have site admin rights.
-if($person->SiteAdmin ){
+if($person->SiteAdmin){
 ?>
 
 <div class="center"><div>

@@ -465,7 +465,7 @@ class People {
 			WriteAccess=$this->WriteAccess, DeleteAccess=$this->DeleteAccess, 
 			ContactAdmin=$this->ContactAdmin, RackRequest=$this->RackRequest, 
 			RackAdmin=$this->RackAdmin, BulkOperations=$this->BulkOperations, SiteAdmin=$this->SiteAdmin,
-			AdminUsers=$this->AdminTemplateModel, AdminDevices=$this->AdminImage,
+			AdminTemplateModel=$this->AdminTemplateModel, AdminImage=$this->AdminImage,
 			APIKey=\"$this->APIKey\", ExpirationDate=\"$formattedDate\", Disabled=$this->Disabled
 			WHERE PersonID=$this->PersonID;";
 			
