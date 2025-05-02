@@ -61,6 +61,19 @@
 			error_log( "Mailer error: {$mail->ErrorInfo}" );
 		}
 	}
+
+	// Récupération dynamique des statuts depuis le champ ENUM de la base
+	$statuses = [];
+	try {
+		$st = $dbh->query("SHOW COLUMNS FROM fac_Device LIKE 'Status'");
+		$row = $st->fetch(PDO::FETCH_ASSOC);
+	
+		if (preg_match("/^enum\((.*)\)$/", $row['Type'], $matches)) {
+			$statuses = explode(",", $matches[1]);
+		}
+	} catch (Exception $e) {
+		error_log("Erreur récupération des statuts : " . $e->getMessage());
+	}
 ?>
 <!doctype html>
 <html>
@@ -218,6 +231,7 @@ $('#changeStatus').click(function(){
 
 		storeMediaList();
 	});
+	
 </script>
 <script type="text/javascript">
 	// Select all the elements in the list of Media Types
@@ -304,23 +318,16 @@ $('#changeStatus').click(function(){
 
 	//for status
 	<label for="statusSelect"><?php echo __("Change Status to"); ?>:</label>
-	<select id="statusSelect">
-	  <option value=""><?php echo __("Select a status"); ?></option>
-	<?php
-		// Récupération des statuts dynamiques depuis la base (ENUM)
-		$st = $dbh->query("SHOW COLUMNS FROM fac_Device LIKE 'Status'");
-		$row = $st->fetch(PDO::FETCH_ASSOC);
-	
-		if(preg_match("/^enum\((.*)\)$/", $row['Type'], $matches)){
-			$statuses = explode(",", $matches[1]);
-			foreach($statuses as $status){
-				$status = trim($status, "'");
-				echo "<option value=\"$status\">".__($status)."</option>\n";
-			}
-		}
-	?>
-	</select>
-	<button type="button" id="changeStatus"><?php echo __("Change Status"); ?></button>
+<select id="statusSelect">
+  <option value=""><?php echo __("Select a status"); ?></option>
+  <?php
+	foreach($statuses as $status){
+		$status = trim($status, "'");
+		echo "<option value=\"$status\">".__($status)."</option>\n";
+	}
+  ?>
+</select>
+<button type="button" id="changeStatus"><?php echo __("Change Status"); ?></button>
 
 	//buttons
 	print $checklist.'</div></div><br/><div style="display: block; margin: auto;">
