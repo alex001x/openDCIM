@@ -995,9 +995,9 @@ if ( $person->ContactAdmin ) {
 	$camenu[]='<a href="project_mgr.php"><span>'.__("Project Catalog").'</span></a>';
 }
 if ( $person->WriteAccess ) {
-	//$wamenu[__("Template Management")][]='<a href="device_templates.php"><span>'.__("Edit Device Templates").'</span></a>';
+	$wamenu[__("Template Management")][]='<a href="device_templates.php"><span>'.__("Edit Device Templates").'</span></a>';
 	$wamenu[__("Infrastructure Management")][]='<a href="cabinets.php"><span>'.__("Edit Cabinets").'</span></a>';
-	//$wamenu[__("Template Management")][]='<a href="image_management.php#pictures"><span>'.__("Device Image Management").'</span></a>';
+	$wamenu[__("Template Management")][]='<a href="image_management.php#pictures"><span>'.__("Device Image Management").'</span></a>';
 }
 if ($person->BulkOperations) {
 	$wamenu[__("Bulk Importer")][]='<a href="bulk_container.php"><span>'.__("Import Container/Datacenter/Zone/Row").'</span></a>';
@@ -1029,9 +1029,7 @@ if ( $person->SiteAdmin ) {
 if ( $person->AdminTemplateModel) {
 	$wamenu[__("Template Management")][]='<a href="device_templates.php"><span>'.__("Edit Device Templates").'</span></a>';
 	$wamenu[__("Template Management")][]='<a href="device_manufacturers.php"><span>'.__("Edit Manufacturers").'</span></a>';
-}
-if ( $person->AdminImage ) {
-	$wamenu[__("Template Management")][]='<a href="image_management.php#pictures"><span>'.__("Device Image Management").'</span></a>';
+	$wamenu[__("Template Management")][]='<a href="image_management.php#pictures"><span>'.__("Device Image Management").'</span></a>'
 }
 if( AUTHENTICATION == "LDAP" ) {
 	// Clear out the Reports menu button and create the Login menu button when not logged in

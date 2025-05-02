@@ -56,7 +56,7 @@
 
 <?php
 // Only show the device pictures if they have global write access or site admin.
-if($person->SiteAdmin || $person->WriteAccess || $person->AdminImage){
+if($person->SiteAdmin || $person->AdminTemplateModel){
 ?>
 
 <div class="center"><div>

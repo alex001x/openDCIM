@@ -505,7 +505,6 @@ CREATE TABLE fac_People (
   BulkOperations tinyint(1) NOT NULL,
   SiteAdmin tinyint(1) NOT NULL,
   AdminTemplateModel tinyint(1) NOT NULL,
-  AdminImage tinyint(1) NOT NULL,
   Disabled tinyint(1) NOT NULL,
   LastActivity DATETIME NOT NULL,
   ExpirationDate DATE NOT NULL,

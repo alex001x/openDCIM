@@ -5289,7 +5289,7 @@ msgstr "Droits pour gérer les sites et utilisateurs"
 msgid "Admin Template Model"
 msgstr "Droits pour gérer les modèles de la bibliothèque"
 
-#: usermgr.php:336
+#: usermgr.php:336w
 msgid "Admin Image"
 msgstr "Droits pour gérer les images des équipements"
 
