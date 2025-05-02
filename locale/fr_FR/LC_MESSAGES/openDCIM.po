@@ -5285,6 +5285,14 @@ msgstr "Droits pour réaliser des imports en masse"
 msgid "Manage Site and Users"
 msgstr "Droits pour gérer les sites et utilisateurs"
 
+#: usermgr.php:335
+msgid "Admin Template Model"
+msgstr "Droits pour gérer les modèles de la bibliothèque"
+
+#: usermgr.php:336
+msgid "Admin Image"
+msgstr "Droits pour gérer les images des équipements"
+
 #: usermgr.php:337
 msgid "Transfer Devices"
 msgstr "Transférer des équipements"
