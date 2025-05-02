@@ -135,8 +135,9 @@
 
 			$('#auditResults').html('<p><?php echo __("Running audit..."); ?></p>');
 
-			let auditPromises = workList.map(function(devID){
-				if (devID != 0) {
+			let auditPromises = workList
+				.filter(devID => devID != 0)
+				.map(function(devID){
 					return $.ajax({
 						type: "GET",
 						url: `/api/v1/audit?DeviceID=${devID}`
@@ -145,20 +146,18 @@
 					}).catch(function(){
 						return { id: devID, error: true };
 					});
+				});
+			Promise.all(auditPromises).then(function(results){
+			let html = '<h4><?php echo __("Audit Results"); ?></h4><ul>';
+			results.forEach(function(r){
+				if (r.error) {
+					html += `<li>Device ${r.id}: <strong><?php echo __("Error during audit"); ?></strong></li>`;
+				} else {
+					html += `<li>Device ${r.id}: OK</li>`;
 				}
 			});
-
-			Promise.all(auditPromises).then(function(results){
-				let html = '<h4><?php echo __("Audit Results"); ?></h4><ul>';
-				results.forEach(function(r){
-					if (r.error) {
-						html += `<li>Device ${r.id}: <strong><?php echo __("Error during audit"); ?></strong></li>`;
-					} else {
-						html += `<li>Device ${r.id}: OK</li>`;
-					}
-				});
-				html += '</ul>';
-				$('#auditResults').html(html);
+			html += '</ul>';
+			$('#auditResults').html(html);
 			});
 		});
 		storeMediaList();
@@ -253,8 +252,8 @@
 ?>
 <button type="button" id="unreserve"><?php print __("Clear Reservation Flag"); ?></button>
 <button type="button" id="storage"><?php print __("Move Items to Storage"); ?></button>
-<button type="button" id="clear"><?php print __("Clear"); ?></button></div>
-<button type="button" id="audit"><?php print __("Audit Selected Devices"); ?></button>
+<button type="button" id="clear"><?php print __("Clear"); ?></button>
+<button type="button" id="audit"><?php print __("Audit Selected Devices"); ?></button></div>
 </form>
 <div id="auditResults" style="margin-top: 1em;"></div>
 </div></div>
