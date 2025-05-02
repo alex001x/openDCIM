@@ -316,8 +316,11 @@ $('#changeStatus').click(function(){
 	}
 	$checklist.='</select><br/><button type="button" style="width: 100%;" onclick="selectAll()">'.__("Select All").'</button>';
 
-	//for status
-	<label for="statusSelect"><?php echo __("Change Status to"); ?>:</label>
+	print $checklist.'</div></div><br/><div style="display: block; margin: auto;">';
+
+// affichage du champ Status et bouton
+?>
+<label for="statusSelect"><?php echo __("Change Status to"); ?>:</label>
 <select id="statusSelect">
   <option value=""><?php echo __("Select a status"); ?></option>
   <?php
@@ -328,6 +331,8 @@ $('#changeStatus').click(function(){
   ?>
 </select>
 <button type="button" id="changeStatus"><?php echo __("Change Status"); ?></button>
+<?php
+
 
 	//buttons
 	print $checklist.'</div></div><br/><div style="display: block; margin: auto;">
@@ -339,7 +344,7 @@ $('#changeStatus').click(function(){
 <button type="button" id="audit"><?php print __("Audit Selected Devices"); ?></button>
 <button type="button" id="clear"><?php print __("Clear"); ?></button>
 </div></form>
-//messages
+<!-- messages -->
 <div id="auditResults" style="margin-top: 1em;"></div>
 <div id="statusResults" style="margin-top: 1em;"></div>
 
