@@ -82,7 +82,7 @@
 	$(document).ready(function(){
 		$('#clear').click(function(){
 			$.removeCookie('workOrder');
-			alerte(clearedMessage);
+			alert(clearedMessage);
 			location.href="index.php";
 		});
 		$('#unreserve').click(function(){
@@ -99,6 +99,7 @@
 				}
 			}
 		});
+		//storage
 		$('#storage').click(function(){
 			if (!confirm(confirmMoveMessage)) {
 				return;
@@ -126,39 +127,92 @@
 				alert(message);
 			});
 		});
+		//Audit
 		$('#audit').click(function(){
-	let workList = JSON.parse($.cookie("workOrder"));
-	if (!workList || workList.length === 0) {
-		$('#auditResults').html('<div class="error-message"><?php echo __("No devices selected."); ?></div>');
+		let workList = JSON.parse($.cookie("workOrder"));
+		if (!workList || workList.length === 0) {
+			$('#auditResults').html('<div class="error-message"><?php echo __("No devices selected."); ?></div>');
+			return;
+		}
+
+		$('#auditResults').html('<p><?php echo __("Running audit..."); ?></p>');
+
+		let auditPromises = workList
+			.filter(devID => devID != 0)
+			.map(function(devID){
+				return $.ajax({
+					type: "PUT",
+					url: `/api/v1/audit?DeviceID=${devID}`
+				}).then(function(response){
+					return { id: devID, result: response };
+				}).catch(function(){
+					return { id: devID, error: true };
+				});
+			});
+
+		Promise.all(auditPromises).then(function(results){
+			let html = '<h4><?php echo __("Audit Results"); ?></h4><ul>';
+			results.forEach(function(r){
+				if (r.error) {
+					html += `<li>Device ${r.id}: <strong><?php echo __("Error during audit"); ?></strong></li>`;
+				} else {
+					html += `<li>Device ${r.id}: OK</li>`;
+				}
+			});
+			html += '</ul>';
+			$('#auditResults').html(html);
+			});
+		});
+// status
+$('#changeStatus').click(function(){
+	let newStatus = $('#statusSelect').val();
+	if (!newStatus) {
+		$('#statusResults').html('<div class="error-message"><?php echo __("Please select a status."); ?></div>');
 		return;
 	}
 
-	$('#auditResults').html('<p><?php echo __("Running audit..."); ?></p>');
+	let workList = JSON.parse($.cookie("workOrder"));
+	if (!workList || workList.length === 0) {
+		$('#statusResults').html('<div class="error-message"><?php echo __("No devices selected."); ?></div>');
+		return;
+	}
 
-	let auditPromises = workList
+	$('#statusResults').html('<p><?php echo __("Updating statuses..."); ?></p>');
+
+	let promises = workList
 		.filter(devID => devID != 0)
 		.map(function(devID){
 			return $.ajax({
-				type: "PUT",
-				url: `/api/v1/audit?DeviceID=${devID}`
-			}).then(function(response){
-				return { id: devID, result: response };
+				type: "GET",
+				url: `/api/v1/device/${devID}`
+			}).then(function(device){
+				device.Status = newStatus;
+				return $.ajax({
+					type: "POST",
+					url: "/api/v1/Device/",
+					contentType: "application/json",
+					data: JSON.stringify(device)
+				}).then(function(){
+					return { id: devID, success: true };
+				}).catch(function(){
+					return { id: devID, error: true };
+				});
 			}).catch(function(){
 				return { id: devID, error: true };
 			});
 		});
 
-	Promise.all(auditPromises).then(function(results){
-		let html = '<h4><?php echo __("Audit Results"); ?></h4><ul>';
+	Promise.all(promises).then(function(results){
+		let html = '<h4><?php echo __("Status Change Results"); ?></h4><ul>';
 		results.forEach(function(r){
 			if (r.error) {
-				html += `<li>Device ${r.id}: <strong><?php echo __("Error during audit"); ?></strong></li>`;
+				html += `<li>Device ${r.id}: <strong><?php echo __("Error updating status"); ?></strong></li>`;
 			} else {
-				html += `<li>Device ${r.id}: OK</li>`;
+				html += `<li>Device ${r.id}: <?php echo __("Updated successfully"); ?></li>`;
 			}
 		});
 		html += '</ul>';
-		$('#auditResults').html(html);
+		$('#statusResults').html(html);
 	});
 });
 
@@ -248,16 +302,29 @@
 	}
 	$checklist.='</select><br/><button type="button" style="width: 100%;" onclick="selectAll()">'.__("Select All").'</button>';
 
+	//for status
+	<label for="statusSelect"><?php echo __("Change Status to"); ?>:</label>
+<select id="statusSelect">
+  <option value=""><?php echo __("Select a status"); ?></option>
+  <option value="Installed"><?php echo __("Installed"); ?></option>
+  <option value="Planned"><?php echo __("Planned"); ?></option>
+  <option value="Reserved"><?php echo __("Reserved"); ?></option>
+  <option value="Disposed"><?php echo __("Disposed"); ?></option>
+</select>
+<button type="button" id="changeStatus"><?php echo __("Change Status"); ?></button>
+
 	print $checklist.'</div></div><br/><div style="display: block; margin: auto;">
 <a href="export_port_connections.php?deviceid=wo"><button type="button">'.__("Export Connections").'</button></a>
 <button type="submit" name="action" value="Send">'.__("Email to DC Team Address").'</button>';
 ?>
 <button type="button" id="unreserve"><?php print __("Clear Reservation Flag"); ?></button>
 <button type="button" id="storage"><?php print __("Move Items to Storage"); ?></button>
+<button type="button" id="audit"><?php print __("Audit Selected Devices"); ?></button>
 <button type="button" id="clear"><?php print __("Clear"); ?></button>
-<button type="button" id="audit"><?php print __("Audit Selected Devices"); ?></button></div>
-</form>
+</div></form>
 <div id="auditResults" style="margin-top: 1em;"></div>
+<div id="statusResults" style="margin-top: 1em;"></div>
+
 </div></div>
 </div><!-- END div.main -->
 </div><!-- END div.page -->
