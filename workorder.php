@@ -127,39 +127,41 @@
 			});
 		});
 		$('#audit').click(function(){
-			let workList = JSON.parse($.cookie("workOrder"));
-			if (!workList || workList.length === 0) {
-				$('#auditResults').html('<div class="error-message"><?php echo __("No devices selected."); ?></div>');
-				return;
-			}
+	let workList = JSON.parse($.cookie("workOrder"));
+	if (!workList || workList.length === 0) {
+		$('#auditResults').html('<div class="error-message"><?php echo __("No devices selected."); ?></div>');
+		return;
+	}
 
-			$('#auditResults').html('<p><?php echo __("Running audit..."); ?></p>');
+	$('#auditResults').html('<p><?php echo __("Running audit..."); ?></p>');
 
-			let auditPromises = workList
-				.filter(devID => devID != 0)
-				.map(function(devID){
-					return $.ajax({
-						type: "GET",
-						url: `/api/v1/audit?DeviceID=${devID}`
-					}).then(function(response){
-						return { id: devID, result: response };
-					}).catch(function(){
-						return { id: devID, error: true };
-					});
-				});
-			Promise.all(auditPromises).then(function(results){
-			let html = '<h4><?php echo __("Audit Results"); ?></h4><ul>';
-			results.forEach(function(r){
-				if (r.error) {
-					html += `<li>Device ${r.id}: <strong><?php echo __("Error during audit"); ?></strong></li>`;
-				} else {
-					html += `<li>Device ${r.id}: OK</li>`;
-				}
-			});
-			html += '</ul>';
-			$('#auditResults').html(html);
+	let auditPromises = workList
+		.filter(devID => devID != 0)
+		.map(function(devID){
+			return $.ajax({
+				type: "PUT",
+				url: `/api/v1/audit?DeviceID=${devID}`
+			}).then(function(response){
+				return { id: devID, result: response };
+			}).catch(function(){
+				return { id: devID, error: true };
 			});
 		});
+
+	Promise.all(auditPromises).then(function(results){
+		let html = '<h4><?php echo __("Audit Results"); ?></h4><ul>';
+		results.forEach(function(r){
+			if (r.error) {
+				html += `<li>Device ${r.id}: <strong><?php echo __("Error during audit"); ?></strong></li>`;
+			} else {
+				html += `<li>Device ${r.id}: OK</li>`;
+			}
+		});
+		html += '</ul>';
+		$('#auditResults').html(html);
+	});
+});
+
 		storeMediaList();
 	});
 </script>
