@@ -304,15 +304,25 @@ $('#changeStatus').click(function(){
 
 	//for status
 	<label for="statusSelect"><?php echo __("Change Status to"); ?>:</label>
-<select id="statusSelect">
-  <option value=""><?php echo __("Select a status"); ?></option>
-  <option value="Installed"><?php echo __("Installed"); ?></option>
-  <option value="Planned"><?php echo __("Planned"); ?></option>
-  <option value="Reserved"><?php echo __("Reserved"); ?></option>
-  <option value="Disposed"><?php echo __("Disposed"); ?></option>
-</select>
-<button type="button" id="changeStatus"><?php echo __("Change Status"); ?></button>
+	<select id="statusSelect">
+	  <option value=""><?php echo __("Select a status"); ?></option>
+	<?php
+		// Récupération des statuts dynamiques depuis la base (ENUM)
+		$st = $dbh->query("SHOW COLUMNS FROM fac_Device LIKE 'Status'");
+		$row = $st->fetch(PDO::FETCH_ASSOC);
+	
+		if(preg_match("/^enum\((.*)\)$/", $row['Type'], $matches)){
+			$statuses = explode(",", $matches[1]);
+			foreach($statuses as $status){
+				$status = trim($status, "'");
+				echo "<option value=\"$status\">".__($status)."</option>\n";
+			}
+		}
+	?>
+	</select>
+	<button type="button" id="changeStatus"><?php echo __("Change Status"); ?></button>
 
+	//buttons
 	print $checklist.'</div></div><br/><div style="display: block; margin: auto;">
 <a href="export_port_connections.php?deviceid=wo"><button type="button">'.__("Export Connections").'</button></a>
 <button type="submit" name="action" value="Send">'.__("Email to DC Team Address").'</button>';
@@ -322,6 +332,7 @@ $('#changeStatus').click(function(){
 <button type="button" id="audit"><?php print __("Audit Selected Devices"); ?></button>
 <button type="button" id="clear"><?php print __("Clear"); ?></button>
 </div></form>
+//messages
 <div id="auditResults" style="margin-top: 1em;"></div>
 <div id="statusResults" style="margin-top: 1em;"></div>
 
