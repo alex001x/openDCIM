@@ -119,14 +119,48 @@
 					errorCount++;
 				});
 			}
-		});
+			});
 
-		Promise.allSettled(promises).then(function(){
-			let message = `${moveSuccessMessage}: ${successCount} ${moveSuccessCountMessage}, ${errorCount} ${moveErrorCountMessage}.`;
-			alert(message);
+			Promise.allSettled(promises).then(function(){
+				let message = `${moveSuccessMessage}: ${successCount} ${moveSuccessCountMessage}, ${errorCount} ${moveErrorCountMessage}.`;
+				alert(message);
+			});
 		});
-	});
+		$('#audit').click(function(){
+			let workList = JSON.parse($.cookie("workOrder"));
+			if (!workList || workList.length === 0) {
+				$('#auditResults').html('<div class="error-message"><?php echo __("No devices selected."); ?></div>');
+				return;
+			}
 
+			$('#auditResults').html('<p><?php echo __("Running audit..."); ?></p>');
+
+			let auditPromises = workList.map(function(devID){
+				if (devID != 0) {
+					return $.ajax({
+						type: "GET",
+						url: `/api/v1/audit?DeviceID=${devID}`
+					}).then(function(response){
+						return { id: devID, result: response };
+					}).catch(function(){
+						return { id: devID, error: true };
+					});
+				}
+			});
+
+			Promise.all(auditPromises).then(function(results){
+				let html = '<h4><?php echo __("Audit Results"); ?></h4><ul>';
+				results.forEach(function(r){
+					if (r.error) {
+						html += `<li>Device ${r.id}: <strong><?php echo __("Error during audit"); ?></strong></li>`;
+					} else {
+						html += `<li>Device ${r.id}: OK</li>`;
+					}
+				});
+				html += '</ul>';
+				$('#auditResults').html(html);
+			});
+		});
 		storeMediaList();
 	});
 </script>
@@ -220,7 +254,9 @@
 <button type="button" id="unreserve"><?php print __("Clear Reservation Flag"); ?></button>
 <button type="button" id="storage"><?php print __("Move Items to Storage"); ?></button>
 <button type="button" id="clear"><?php print __("Clear"); ?></button></div>
+<button type="button" id="audit"><?php print __("Audit Selected Devices"); ?></button>
 </form>
+<div id="auditResults" style="margin-top: 1em;"></div>
 </div></div>
 </div><!-- END div.main -->
 </div><!-- END div.page -->
