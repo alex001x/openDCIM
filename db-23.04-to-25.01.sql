@@ -100,7 +100,7 @@ INSERT INTO fac_PowerVoltages set VoltageName='277AC';
 INSERT INTO fac_PowerVoltages set VoltageName='48DC';
 
 ALTER TABLE fac_PowerPorts ADD COLUMN ConnectorID int(11) DEFAULT NULL AFTER Label;
-ALTER TABLE fac_PowerPorts ADD COLUMN PhaseID int(11) DEFAULT NULL AFTER ConnectorType;
-ALTER TABLE fac_PowerPorts ADD COLUMN VoltageID int(11) DEFAULT NULL AFTER Phase;
+ALTER TABLE fac_PowerPorts ADD COLUMN PhaseID int(11) DEFAULT NULL AFTER ConnectorID;
+ALTER TABLE fac_PowerPorts ADD COLUMN VoltageID int(11) DEFAULT NULL AFTER PhaseID;
 
 UPDATE fac_Config set Value="25.01" WHERE Parameter="Version";
