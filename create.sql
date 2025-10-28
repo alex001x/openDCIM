@@ -189,6 +189,19 @@ CREATE TABLE fac_ColorCoding (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 --
+-- Table structure for fac_PermissionsDC
+--
+
+DROP TABLE IF EXISTS fac_PermissionsDC;
+CREATE TABLE fac_PermissionsDC (
+  UserID varchar(50) NOT NULL,
+  DataCenterID int(11) NOT NULL,
+  Rights int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (UserID, DataCenterID),
+  KEY DataCenterID (DataCenterID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+--
 -- Create a table for things that we want to cache, such as the Navigation Menu
 --
 DROP TABLE IF EXISTS fac_DataCache;

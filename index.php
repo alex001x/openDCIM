@@ -96,7 +96,7 @@
 echo '
 <div class="main">
 <div class="center"><div>
-',$rackrequest,'
+',$rackrequest,(isset($_GET['msg']) && $_GET['msg']!='' ? '<h3>'.sanitize($_GET['msg']).'</h3>' : ''),'
 <h3>',__("Data Center Inventory"),' <a href="search_export.php">(',__("Export Inventory"),')</a></h3>
 <div class="table border centermargin">
 <div class="title">

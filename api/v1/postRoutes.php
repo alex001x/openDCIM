@@ -15,7 +15,58 @@
   *
   *		POST Methods are for updating existing records
   *
-  **/
+ **/
+
+//
+//  URL:    /api/v1/userdcacl/:userid
+//  Method: POST
+//  Body:   { acls: [ { DataCenterID:int, Rights:int }, ... ] }
+//  Returns: status
+//
+
+$app->post('/userdcacl/{userid}', function( Request $request, Response $response, $args ) use ($person) {
+    $r = array();
+
+    if ( ! $person->ContactAdmin ) {
+        $r['error'] = true;
+        $r['errorcode'] = 401;
+        $r['message'] = __('Access Denied');
+        return $response->withJson($r, $r['errorcode']);
+    }
+
+    $userid = $args['userid'];
+
+    // Validate user exists
+    $p = new People();
+    $p->UserID = $userid;
+    if ( ! $p->GetPersonByUserID() ) {
+        $r['error'] = true;
+        $r['errorcode'] = 404;
+        $r['message'] = __('User not found');
+        return $response->withJson($r, $r['errorcode']);
+    }
+
+    $vars = $request->getParsedBody();
+    if ( !is_array($vars) || !isset($vars['acls']) || !is_array($vars['acls']) ) {
+        $r['error'] = true;
+        $r['errorcode'] = 400;
+        $r['message'] = __('Invalid input parameters.');
+        return $response->withJson($r, $r['errorcode']);
+    }
+
+    $ok = DCACL::setRightsForUser($userid, $vars['acls']);
+    if ($ok) {
+        $r['error'] = false;
+        $r['errorcode'] = 200;
+        $r['message'] = __('ACL updated successfully.');
+    } else {
+        $r['error'] = true;
+        $r['errorcode'] = 500;
+        $r['message'] = __('ACL update failed');
+    }
+
+    return $response->withJson($r, $r['errorcode']);
+});
 
 //
 //	URL:	/api/v1/people

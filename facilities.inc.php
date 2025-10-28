@@ -43,6 +43,7 @@ if ( isset( $config ) && property_exists( $config, "ParameterArray" ) ){
 require_once( __DIR__ . "/vendor/autoload.php" );
 require_once( "version.php" );
 require_once( "misc.inc.php" );
+require_once( "classes/DCACL.class.php" );
 
 // SNMP Library, don't attempt to load without php-snmp extensions
 if(extension_loaded('snmp')){

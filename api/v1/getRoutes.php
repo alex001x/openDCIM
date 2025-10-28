@@ -153,20 +153,24 @@ $app->get('/datacenter', function(Request $request, Response $response) use ($pe
 	$outputAttr = array();
 	$loose = false;
 
-	$vars = $request->getQueryParams() ?: $request->getParsedBody();
-	if ( $config->ParameterArray["GDPRCountryIsolation"] == "enabled" && !$person->SiteAdmin ) {
-		$vars["countryCode"] = $person->countryCode;		
-	}
+    $vars = $request->getQueryParams() ?: $request->getParsedBody();
+    $allowAll = (isset($vars['all']) && ($vars['all'] === '1' || $vars['all'] === 1 || $vars['all'] === true));
+    // For ContactAdmin screens (like usermgr.php), allow override to list all DCs
+    if ( $config->ParameterArray["GDPRCountryIsolation"] == "enabled" && !$person->SiteAdmin && !( $allowAll && $person->ContactAdmin ) ) {
+        $vars["countryCode"] = $person->countryCode;
+    }
 
-	foreach( $vars as $prop=>$val ) {
-		if (strtoupper($prop) == "WILDCARDS" ) {
-			$loose = true;
-		} elseif( strtoupper($prop) == "ATTRIBUTES" ) {
-			$outputAttr = explode( ",", $val );
-		} else {
-			$dc->$prop = $val;
-		}
-	}
+    foreach( $vars as $prop=>$val ) {
+        if (strtoupper($prop) == "WILDCARDS" ) {
+            $loose = true;
+        } elseif( strtoupper($prop) == "ATTRIBUTES" ) {
+            $outputAttr = explode( ",", $val );
+        } elseif (strtoupper($prop) == "ALL") {
+            // ignore helper flag
+        } else {
+            $dc->$prop = $val;
+        }
+    }
 
 	$r = array();
 	$r['error'] = false;
@@ -174,6 +178,35 @@ $app->get('/datacenter', function(Request $request, Response $response) use ($pe
 	$r['datacenter'] = specifyAttributes( $outputAttr, $dc->Search( false, $loose ));
 
 	return $response->withJson($r, $r['errorcode']);
+});
+
+//
+//  URL:    /api/v1/userdcacl/:userid
+//  Method: GET
+//  Params: userid (UserID string)
+//  Returns: List of ACL entries for the specified user
+//
+
+$app->get('/userdcacl/{userid}', function(Request $request, Response $response, $args) use($person) {
+    $r = array();
+    if ( ! $person->ContactAdmin ) {
+        $r['error'] = true;
+        $r['errorcode'] = 401;
+        $r['message'] = __('Access Denied');
+        return $response->withJson($r, $r['errorcode']);
+    }
+
+    $userid = $args['userid'];
+    $aclsMap = DCACL::getRightsByUser($userid);
+    $acls = array();
+    foreach ($aclsMap as $dcid => $rights) {
+        $acls[] = array('UserID' => $userid, 'DataCenterID' => $dcid, 'Rights' => $rights);
+    }
+
+    $r['error'] = false;
+    $r['errorcode'] = 200;
+    $r['acls'] = $acls;
+    return $response->withJson($r, $r['errorcode']);
 });
 
 //

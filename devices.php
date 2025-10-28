@@ -21,6 +21,22 @@
 			header('Location: '.redirect());
 			exit;
 		}
+		// Per-DC ACL check for READ access
+		if ( isset($_REQUEST["DeviceID"]) ) {
+			// Determine the DC from the device context if not already
+			$dev->DeviceID = $_REQUEST["DeviceID"];
+			$dev->GetDevice();
+			$cab->CabinetID = $dev->Cabinet;
+			$cab->GetCabinet();
+			$dc = new DataCenter();
+			$dc->DataCenterID = $cab->DataCenterID;
+			$dc->GetDataCenterbyID();
+			if ( class_exists('DCACL') && !DCACL::hasRight($person->UserID, $dc->DataCenterID, DCACL::RIGHT_READ) ) {
+				$errmsg = urlencode(__('You do not have permission to access this datacenter. Please contact your administrator.'));
+				header('Location: '.redirect('index.php?msg='.$errmsg));
+				exit;
+			}
+		}
 	}
 
 	$validHypervisors=array( "None", "ESX", "ProxMox" );

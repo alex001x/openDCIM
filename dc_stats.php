@@ -74,8 +74,17 @@
 		exit;
 	}
 	
-	$dc->DataCenterID=$_GET["dc"];
-	$dc->GetDataCenterbyID();
+$dc->DataCenterID=$_GET["dc"];
+$dc->GetDataCenterbyID();
+
+// Enforce per-DC ACL: non-admins must have READ on this datacenter
+if ( !$person->SiteAdmin ) {
+    if ( class_exists('DCACL') && !DCACL::hasRight($person->UserID, $dc->DataCenterID, DCACL::RIGHT_READ) ) {
+        $errmsg = urlencode(__('You do not have permission to access this datacenter. Please contact your administrator.'));
+        header('Location: '.redirect('index.php?msg='.$errmsg));
+        exit;
+    }
+}
 
 	if ( !$person->SiteAdmin && ($config->ParameterArray["GDPRCountryIsolation"] == "enabled" && ( $dc->countryCode != $person->countryCode ) ) ) {
 		error_log( "GDPR Isolation Enabled:  User country: ".$person->countryCode." denied access to Data Center country: ".$dc->countryCode );

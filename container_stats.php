@@ -12,8 +12,40 @@
 
 	$c=New Container();
 	
-	$c->ContainerID=$_GET["container"];
-	$c->GetContainer();
+$c->ContainerID=$_GET["container"];
+$c->GetContainer();
+
+// Enforce per-Container ACL for non-admins: require READ on all DCs within this container (including child containers)
+if ( !$person->SiteAdmin ) {
+    if ( class_exists('DCACL') ) {
+        // Build list of descendant ContainerIDs
+        $desc = array(intval($c->ContainerID));
+        $idx = 0;
+        while ($idx < count($desc)) {
+            $cur = $desc[$idx++];
+            $st = $dbh->prepare('SELECT ContainerID FROM fac_Container WHERE ParentID=:pid');
+            $st->execute(array(':pid'=>$cur));
+            while($row = $st->fetch()){
+                $desc[] = intval($row['ContainerID']);
+            }
+        }
+        $desc = array_values(array_unique($desc));
+        // Fetch all DCs under these containers
+        $placeholders = implode(',', array_fill(0, count($desc), '?'));
+        if($placeholders!=''){
+            $st = $dbh->prepare('SELECT DataCenterID FROM fac_DataCenter WHERE ContainerID IN ('.$placeholders.')');
+            $st->execute($desc);
+            while($row = $st->fetch()){
+                $dcid = intval($row['DataCenterID']);
+                if ( !DCACL::hasRight($person->UserID, $dcid, DCACL::RIGHT_READ) ) {
+                    $errmsg = urlencode(__('You do not have permission to access this datacenter. Please contact your administrator.'));
+                    header('Location: '.redirect('index.php?msg='.$errmsg));
+                    exit;
+                }
+            }
+        }
+    }
+}
 
 	if ( !$person->SiteAdmin && ($config->ParameterArray["GDPRCountryIsolation"] == "enabled" && ( $c->countryCode != $person->countryCode ) ) ) {
 		error_log( "GDPR Isolation Enabled:  User country: ".$person->countryCode." denied access to Container country: ".$c->countryCode );

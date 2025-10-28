@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /*
 	openDCIM
 
@@ -304,21 +304,45 @@ class DataCenter {
 		}
 	}
 		
-	static function GetDCList($indexedbyid=false){
+static function GetDCList($indexedbyid=false){
 		global $dbh;
+		global $person;
 
 		$sql="SELECT * FROM fac_DataCenter ORDER BY Name ASC;";
 
-		$datacenterList=array();
+		$allDCs=array();
 		foreach($dbh->query($sql) as $row){
 			if($indexedbyid){
-				$datacenterList[$row['DataCenterID']]=DataCenter::RowToObject($row);
+				$allDCs[$row['DataCenterID']]=DataCenter::RowToObject($row);
 			}else{
-				$datacenterList[]=DataCenter::RowToObject($row);
+				$allDCs[]=DataCenter::RowToObject($row);
 			}
 		}
 
-		return $datacenterList;
+		// Apply per-DC ACL filtering for non-site-admin users (safe-guarded)
+		if (isset($person) && !$person->SiteAdmin && isset($person->UserID) && $person->UserID!=='') {
+			try{
+				if (class_exists('DCACL')) {
+					$allowedIDs = DCACL::getAllowedDCIDs($person->UserID, DCACL::RIGHT_READ);
+					$allowedSet = array_flip($allowedIDs);
+					$filtered = array();
+					if ($indexedbyid) {
+						foreach ($allDCs as $id => $dc) {
+							if (isset($allowedSet[$id])) { $filtered[$id] = $dc; }
+						}
+					} else {
+						foreach ($allDCs as $dc) {
+							if (isset($allowedSet[$dc->DataCenterID])) { $filtered[] = $dc; }
+						}
+					}
+					return $filtered;
+				}
+			}catch(Exception $e){
+				error_log('DataCenter::GetDCList ACL filter error: '.$e->getMessage());
+			}
+		}
+
+		return $allDCs;
 	}
 
 	static function GetDCListByCountry($countryCode) {

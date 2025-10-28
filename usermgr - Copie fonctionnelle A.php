@@ -349,8 +349,8 @@ function showdept(){
         var formdata=$(".main form").serializeArray();
         formdata.push({name:'action',value:"Update"});
         $.post('',formdata);
-        #nofloat.addClass('hide');
-        .center input.prop('readonly',true);
+        $('#nofloat').parent('div').addClass('hide');
+        $('.center input').attr('readonly','true');
         $('#controls').hide().removeClass('caption');
         $('#groupadmin').css('display','block').attr('src', 'people_depts.php?personid='+$('#PersonID').val());
     }

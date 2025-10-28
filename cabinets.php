@@ -18,6 +18,17 @@
 	if(isset($_REQUEST['cabinetid'])){
 		$cab->CabinetID=(isset($_POST['cabinetid'])?$_POST['cabinetid']:$_GET['cabinetid']);
 		$cab->GetCabinet();
+		// Enforce per-DC ACL: non-admins must have READ on this datacenter to view cabinet
+		if(!$person->SiteAdmin){
+			$dc = new DataCenter();
+			$dc->DataCenterID = $cab->DataCenterID;
+			$dc->GetDataCenterbyID();
+			if(class_exists('DCACL') && !DCACL::hasRight($person->UserID, $dc->DataCenterID, DCACL::RIGHT_READ)){
+				$errmsg = urlencode(__('You do not have permission to access this datacenter. Please contact your administrator.'));
+				header('Location: '.redirect('index.php?msg='.$errmsg));
+				exit;
+			}
+		}
 		$write=($person->canWrite($cab->AssignedTo))?true:$write;
 	}
 
