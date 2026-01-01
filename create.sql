@@ -960,6 +960,7 @@ INSERT INTO fac_Config VALUES
 	('AppendCabDC', 'disabled', 'Enabled/Disabled', 'string', 'Disabled'),
 	('APIUserID', '', 'Email', 'string', ''),
 	('APIKey', '', 'Key', 'string', ''),
+	('WebhookSecretKey', '', 'Secret', 'string', ''),
 	('RequireDefinedUser', 'disabled', 'Enabled/Disabled', 'string', 'Disabled'),
 	('SNMPVersion', '2c', 'Version', 'string', '2c'),
 	('U1Position', 'Bottom', 'Top/Bottom', 'string', 'Bottom'),
@@ -1104,16 +1105,66 @@ CREATE TABLE fac_Projects (
 
 DROP TABLE IF EXISTS fac_ProjectMembership;
 CREATE TABLE fac_ProjectMembership (
-  ProjectID int(11) NOT NULL,
-  MemberType varchar(7) NOT NULL DEFAULT 'Device',
-  MemberID int(11) NOT NULL,
-  PRIMARY KEY (`ProjectID`, `MemberType`, `MemberID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
---
--- Tables for tracking how things leave
---
+    ProjectID int(11) NOT NULL,
+    MemberType varchar(7) NOT NULL DEFAULT 'Device',
+    MemberID int(11) NOT NULL,
+    PRIMARY KEY (`ProjectID`, `MemberType`, `MemberID`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+  
+  
+  --
+  -- Tables for Webhooks and Integrations
+  --
+  
+  DROP TABLE IF EXISTS fac_Webhooks;
+  CREATE TABLE fac_Webhooks (
+    WebhookID int(11) NOT NULL AUTO_INCREMENT,
+    Name varchar(80) NOT NULL,
+    Context varchar(20) NOT NULL DEFAULT 'Device',
+    Page varchar(80) NOT NULL DEFAULT 'devices.php',
+    UIType varchar(10) NOT NULL DEFAULT 'button',
+    Enabled tinyint(1) NOT NULL DEFAULT 1,
+    ViewRoles varchar(80) NOT NULL DEFAULT 'Read,Write,SiteAdmin',
+    ExecuteRoles varchar(80) NOT NULL DEFAULT 'Write,SiteAdmin',
+    Endpoint varchar(255) NOT NULL,
+    Method varchar(10) NOT NULL DEFAULT 'POST',
+    AllowlistHosts text NOT NULL,
+    Timeout int(11) NOT NULL DEFAULT 10,
+    Connector varchar(30) NOT NULL DEFAULT 'Http',
+    PRIMARY KEY (WebhookID)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+  
+  DROP TABLE IF EXISTS fac_WebhookSecrets;
+  CREATE TABLE fac_WebhookSecrets (
+    SecretID int(11) NOT NULL AUTO_INCREMENT,
+    WebhookID int(11) NOT NULL,
+    EncryptedValue text NOT NULL,
+    CreatedAt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (SecretID),
+    UNIQUE KEY WebhookID (WebhookID)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+  
+  DROP TABLE IF EXISTS fac_WebhookExecutionLogs;
+  CREATE TABLE fac_WebhookExecutionLogs (
+    ExecutionID int(11) NOT NULL AUTO_INCREMENT,
+    WebhookID int(11) NOT NULL,
+    UserID varchar(80) NOT NULL,
+    DeviceID int(11) NOT NULL,
+    Status varchar(20) NOT NULL,
+    HTTPCode int(11) NOT NULL,
+    Duration int(11) NOT NULL,
+    ErrorMessage varchar(255) NOT NULL,
+    CreatedAt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (ExecutionID),
+    KEY WebhookID (WebhookID),
+    KEY DeviceID (DeviceID),
+    KEY UserID (UserID)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+  
+  
+  --
+  -- Tables for tracking how things leave
+  --
 
 CREATE TABLE fac_Disposition (
 DispositionID INT(11) NOT NULL AUTO_INCREMENT,

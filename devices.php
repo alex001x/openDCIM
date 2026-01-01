@@ -26,6 +26,11 @@
 	$validHypervisors=array( "None", "ESX", "ProxMox" );
 
 	$taginsert="";
+	$webhookToken="";
+	if ( session_status() === PHP_SESSION_ACTIVE ) {
+		$webhookToken = bin2hex( random_bytes( 16 ) );
+		$_SESSION["webhook_csrf"] = $webhookToken;
+	}
 
 	// Ajax functions
 	// SNMP Test
@@ -1084,6 +1089,42 @@ $write=(isset($write))?$write:false;
 $write=($person->canWrite($cab->AssignedTo))?true:$write;
 $write=($dev->Rights=="Write")?true:$write;
 
+$webhookButtonsHtml = "";
+$webhookTabHtml = "";
+$webhookDialogHtml = "";
+if ( class_exists( "Webhook" ) && class_exists( "WebhookPolicy" ) && $dev->DeviceID > 0 && $dev->SerialNo > "" ) {
+	$webhookList = Webhook::getWebhookList( "devices.php", "Device", true );
+	$buttonItems = array();
+	$tabItems = array();
+
+	foreach ( $webhookList as $webhook ) {
+		if ( ! WebhookPolicy::canView( $person, $webhook ) ) {
+			continue;
+		}
+
+		$canExecute = WebhookPolicy::canExecute( $person, $webhook );
+		$disabled = $canExecute ? "" : " disabled";
+		$label = htmlspecialchars( $webhook->Name, ENT_QUOTES );
+		$button = '<button type="button" class="webhook-action" data-webhook-id="'.$webhook->WebhookID.'" data-webhook-name="'.$label.'"'.$disabled.'>'.$label.'</button>';
+
+		if ( strtolower( $webhook->UIType ) == "tab" ) {
+			$tabItems[] = $button;
+		} else {
+			$buttonItems[] = $button;
+		}
+	}
+
+	if ( count( $buttonItems ) > 0 ) {
+		$webhookButtonsHtml = implode( " ", $buttonItems );
+	}
+	if ( count( $tabItems ) > 0 ) {
+		$webhookTabHtml = "\t\t<div>\n\t\t\t<div><a id=\"webhooks\">".__("Webhooks")."</a></div>\n\t\t\t<div><div class=\"table border\" id=\"webhook-tab\">\n\t\t\t\t<div><div>".implode( " ", $tabItems )."</div></div>\n\t\t\t</div></div>\n\t\t</div>\n";
+	}
+	if ( $webhookButtonsHtml > "" || $webhookTabHtml > "" ) {
+		$webhookDialogHtml = '<div id="webhook-dialog" class="hide"></div>';
+	}
+}
+
 ?>
 <!doctype html>
 <html>
@@ -1245,6 +1286,8 @@ $(document).ready(function() {
 	$(document).data('DeviceType', $('select[name="DeviceType"]').val());
 	$(document).data('defaultsnmp','<?php echo $config->ParameterArray["SNMPCommunity"]; ?>');
 	$(document).data('showdc','<?php echo $config->ParameterArray["AppendCabDC"]; ?>');
+	var webhookToken='<?php echo $webhookToken; ?>';
+	var webhookDeviceId=<?php echo intval( $dev->DeviceID ); ?>;
 
 	$('#deviceform').validationEngine();
 	$('#MfgDate').datepicker({dateFormat: "yy-mm-dd"});
@@ -1836,6 +1879,54 @@ print "		var dialog=$('<div>').prop('title',\"".__("Verify Delete Device")."\").
 			url : 'scripts/ajax_tags.php',
 			dataType : 'json'
 		}
+	});
+
+	$('.webhook-action').click(function(e){
+		e.preventDefault();
+		var btn=$(this);
+		if(btn.prop('disabled')){ return; }
+
+		var webhookId=btn.data('webhook-id');
+		var webhookName=btn.data('webhook-name');
+
+		btn.prop('disabled', true);
+		$.ajax({
+			url: 'api/v1/webhooks/execute/' + webhookId,
+			method: 'POST',
+			dataType: 'json',
+			headers: {
+				'X-CSRF-Token': webhookToken
+			},
+			data: {
+				DeviceID: webhookDeviceId
+			}
+		}).done(function(data){
+			var message='Webhook execution completed.';
+			if(data && data.result){
+				if(data.result.success){
+					message='Webhook executed. HTTP ' + data.result.httpcode + ' in ' + data.result.duration + 'ms.';
+				}else{
+					message='Webhook failed. HTTP ' + data.result.httpcode + '. ' + data.result.error;
+				}
+			}
+			if($('#webhook-dialog').length){
+				$('#webhook-dialog').text(message).dialog({title: webhookName, modal: true, width: 500});
+			}else{
+				alert(message);
+			}
+		}).fail(function(xhr){
+			var message='Webhook execution failed.';
+			if(xhr && xhr.responseJSON && xhr.responseJSON.message){
+				message=xhr.responseJSON.message;
+			}
+			if($('#webhook-dialog').length){
+				$('#webhook-dialog').text(message).dialog({title: webhookName, modal: true, width: 500});
+			}else{
+				alert(message);
+			}
+		}).always(function(){
+			btn.prop('disabled', false);
+		});
 	});
 });
 
@@ -2497,14 +2588,18 @@ $connectioncontrols.=($dev->DeviceID>0 && !empty($portList))?'
 		// Closing the row, table for the log events, and the stylable div
 		print "\t</div></div></div></div>\n";
 
-		// The input box and button
-		$hideaddnotes=(!$write)?"style=\"display: none;\"":"";
-		print "\t\t\t<div><div><button type=\"button\" $hideaddnotes>Add note</button><div><input /></div></div></div>\n";
+	// The input box and button
+	$hideaddnotes=(!$write)?"style=\"display: none;\"":"";
+	print "\t\t\t<div><div><button type=\"button\" $hideaddnotes>Add note</button><div><input /></div></div></div>\n";
 
 
-		print "\t\t  </div></div>\n\t\t</div>\n";
-		//hide the connection limiters if not on a patch panel.
-		print "\t\t<!-- Spacer --><div><div>&nbsp;</div><div>".(($dev->DeviceType=='Patch Panel')?$connectioncontrols:'')."</div></div><!-- END Spacer -->\n"; // spacer row
+	print "\t\t  </div></div>\n\t\t</div>\n";
+	//hide the connection limiters if not on a patch panel.
+	print "\t\t<!-- Spacer --><div><div>&nbsp;</div><div>".(($dev->DeviceType=='Patch Panel')?$connectioncontrols:'')."</div></div><!-- END Spacer -->\n"; // spacer row
+	}
+
+	if ( $webhookTabHtml > "" ) {
+		print $webhookTabHtml;
 	}
 
 	//HTML content condensed for PHP logic clarity.
@@ -2713,9 +2808,13 @@ print "<!--				<div>".__("Panel")."</div> -->
 	if($dev->DeviceID >0){
 		echo '		<a href="export_port_connections.php?deviceid=',$dev->DeviceID,'"><button type="button">',__("Export Connections"),'</button></a>';
 	}
+	if ( $webhookButtonsHtml > "" ) {
+		echo $webhookButtonsHtml;
+	}
 ?>
 
 		</div></div></div>
+		<?php echo $webhookDialogHtml; ?>
 		<div></div></div>
 	</div> <!-- END div.table -->
 </div></div>

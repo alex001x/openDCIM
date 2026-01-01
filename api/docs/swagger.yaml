@@ -1063,6 +1063,89 @@ paths:
       security:
       - api_key: []
       - user_id: []
+  /webhooks:
+    get:
+      summary: List webhooks for a page/context
+      tags:
+      - "Webhook"
+      description: "Returns enabled webhooks visible to the current user for a given page/context."
+      produces:
+      - "application/json"
+      operationId: "GetWebhooks"
+      parameters:
+        - name: page
+          in: query
+          required: false
+          type: string
+          description: "Page name where the webhook is displayed (e.g. devices.php)."
+        - name: context
+          in: query
+          required: false
+          type: string
+          description: "Context the webhook applies to (e.g. Device)."
+        - name: DeviceID
+          in: query
+          required: false
+          type: integer
+          description: "Optional device to evaluate execution eligibility."
+      responses:
+        "401":
+          description: "Access denied."
+        "403":
+          description: "Access denied."
+        "404":
+          description: "Device not found."
+        "200":
+          description: "successful operation"
+          schema:
+            $ref: "#/definitions/WebhookListResponse"
+      security:
+      - api_key: []
+      - user_id: []
+  /webhooks/execute/{WebhookID}:
+    post:
+      summary: Execute a webhook for a device
+      tags:
+      - "Webhook"
+      description: "Executes a webhook against a device context. Requires a valid CSRF token."
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      operationId: "ExecuteWebhook"
+      parameters:
+        - in: path
+          name: "WebhookID"
+          required: true
+          type: integer
+        - in: header
+          name: "X-CSRF-Token"
+          required: false
+          type: string
+          description: "CSRF token; can also be provided as 'csrf' in the request body."
+        - in: body
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/WebhookExecuteRequest"
+      responses:
+        "400":
+          description: "Invalid request."
+        "401":
+          description: "Access denied."
+        "403":
+          description: "Access denied."
+        "404":
+          description: "Webhook or device not found."
+        "502":
+          description: "Webhook execution failed."
+        "200":
+          description: "successful operation"
+          schema:
+            $ref: "#/definitions/WebhookExecuteResponse"
+      security:
+      - api_key: []
+      - user_id: []
 definitions:
   Audit:
     type: "object"
@@ -1674,6 +1757,80 @@ definitions:
       LastRead:
         type: "string"
         format: "Timestamp of last reading"
+  Webhook:
+    type: "object"
+    properties:
+      WebhookID:
+        type: "integer"
+        format: "keyValue"
+      Name:
+        type: "string"
+        format: "Name"
+      UIType:
+        type: "string"
+        format: "button or tab"
+      CanExecute:
+        type: "boolean"
+        format: "User can execute"
+  WebhookListResponse:
+    type: "object"
+    properties:
+      error:
+        type: "boolean"
+      errorcode:
+        type: "integer"
+      webhook:
+        type: "array"
+        items:
+          $ref: "#/definitions/Webhook"
+  WebhookExecuteRequest:
+    type: "object"
+    properties:
+      DeviceID:
+        type: "integer"
+        format: "keyValue"
+      csrf:
+        type: "string"
+        format: "CSRF token"
+  WebhookExecuteResponse:
+    type: "object"
+    properties:
+      error:
+        type: "boolean"
+      errorcode:
+        type: "integer"
+      webhook:
+        type: "object"
+        properties:
+          WebhookID:
+            type: "integer"
+            format: "keyValue"
+          Name:
+            type: "string"
+            format: "Name"
+      device:
+        type: "object"
+        properties:
+          DeviceID:
+            type: "integer"
+            format: "keyValue"
+          SerialNo:
+            type: "string"
+            format: "Serial number"
+          Label:
+            type: "string"
+            format: "Label"
+      result:
+        type: "object"
+        properties:
+          success:
+            type: "boolean"
+          httpcode:
+            type: "integer"
+          duration:
+            type: "integer"
+          error:
+            type: "string"
 securityDefinitions:
   api_key:
     type: "apiKey"

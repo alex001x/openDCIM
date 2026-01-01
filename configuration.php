@@ -324,6 +324,84 @@
 	}
 	// END AJAX Requests
 
+	$webhookmessage = "";
+	if ( isset( $_POST["WebhookAction"] ) ) {
+		if ( ! $person->SiteAdmin ) {
+			$webhookmessage = __("Access Denied");
+		} else {
+			$action = $_POST["WebhookAction"];
+			if ( $action == "create" ) {
+				$data = isset( $_POST["WebhookNew"] ) ? $_POST["WebhookNew"] : array();
+				$webhook = new Webhook();
+				$webhook->Name = trim( $data["Name"] );
+				$webhook->Context = isset( $data["Context"] ) ? $data["Context"] : "Device";
+				$webhook->Page = isset( $data["Page"] ) ? $data["Page"] : "devices.php";
+				$webhook->UIType = isset( $data["UIType"] ) ? $data["UIType"] : "button";
+				$webhook->Enabled = isset( $data["Enabled"] ) ? 1 : 0;
+				$webhook->ViewRoles = isset( $data["ViewRoles"] ) ? implode( ",", $data["ViewRoles"] ) : "Read,Write,SiteAdmin";
+				$webhook->ExecuteRoles = isset( $data["ExecuteRoles"] ) ? implode( ",", $data["ExecuteRoles"] ) : "Write,SiteAdmin";
+				$webhook->Endpoint = trim( $data["Endpoint"] );
+				$webhook->Method = isset( $data["Method"] ) ? $data["Method"] : "POST";
+				$webhook->AllowlistHosts = trim( $data["AllowlistHosts"] );
+				$webhook->Timeout = isset( $data["Timeout"] ) ? intval( $data["Timeout"] ) : 10;
+				$webhook->Connector = isset( $data["Connector"] ) ? $data["Connector"] : "Http";
+
+				if ( $webhook->Name == "" || $webhook->Endpoint == "" || $webhook->AllowlistHosts == "" ) {
+					$webhookmessage = __("Webhook Name, Endpoint, and AllowlistHosts are required.");
+				} else {
+					$webhookID = $webhook->createWebhook();
+					if ( $webhookID ) {
+						if ( isset( $data["SecretValue"] ) && $data["SecretValue"] > "" ) {
+							WebhookSecret::setSecret( $webhookID, $data["SecretValue"] );
+						}
+						$webhookmessage = __("Webhook created successfully.");
+					} else {
+						$webhookmessage = __("Webhook creation failed.");
+					}
+				}
+			} elseif ( strpos( $action, "update:" ) === 0 ) {
+				$webhookID = intval( substr( $action, 7 ) );
+				if ( isset( $_POST["Webhook"][$webhookID] ) ) {
+					$data = $_POST["Webhook"][$webhookID];
+					$webhook = new Webhook();
+					$webhook->WebhookID = $webhookID;
+					$webhook->Name = trim( $data["Name"] );
+					$webhook->Context = isset( $data["Context"] ) ? $data["Context"] : "Device";
+					$webhook->Page = isset( $data["Page"] ) ? $data["Page"] : "devices.php";
+					$webhook->UIType = isset( $data["UIType"] ) ? $data["UIType"] : "button";
+					$webhook->Enabled = isset( $data["Enabled"] ) ? 1 : 0;
+					$webhook->ViewRoles = isset( $data["ViewRoles"] ) ? implode( ",", $data["ViewRoles"] ) : "Read,Write,SiteAdmin";
+					$webhook->ExecuteRoles = isset( $data["ExecuteRoles"] ) ? implode( ",", $data["ExecuteRoles"] ) : "Write,SiteAdmin";
+					$webhook->Endpoint = trim( $data["Endpoint"] );
+					$webhook->Method = isset( $data["Method"] ) ? $data["Method"] : "POST";
+					$webhook->AllowlistHosts = trim( $data["AllowlistHosts"] );
+					$webhook->Timeout = isset( $data["Timeout"] ) ? intval( $data["Timeout"] ) : 10;
+					$webhook->Connector = isset( $data["Connector"] ) ? $data["Connector"] : "Http";
+
+					if ( $webhook->Name == "" || $webhook->Endpoint == "" || $webhook->AllowlistHosts == "" ) {
+						$webhookmessage = __("Webhook Name, Endpoint, and AllowlistHosts are required.");
+					} elseif ( $webhook->updateWebhook() ) {
+						if ( isset( $data["SecretValue"] ) && $data["SecretValue"] > "" ) {
+							WebhookSecret::setSecret( $webhookID, $data["SecretValue"] );
+						}
+						$webhookmessage = __("Webhook updated successfully.");
+					} else {
+						$webhookmessage = __("Webhook update failed.");
+					}
+				}
+			} elseif ( strpos( $action, "delete:" ) === 0 ) {
+				$webhookID = intval( substr( $action, 7 ) );
+				$webhook = new Webhook();
+				$webhook->WebhookID = $webhookID;
+				if ( $webhook->deleteWebhook() ) {
+					$webhookmessage = __("Webhook deleted successfully.");
+				} else {
+					$webhookmessage = __("Webhook deletion failed.");
+				}
+			}
+		}
+	}
+
 	if(isset($_REQUEST["action"]) && $_REQUEST["action"]=="Update"){
 		foreach($config->ParameterArray as $key=>$value){
 			if($key=="ClassList"){
@@ -500,6 +578,142 @@
 				</div>';
 		}
 	}
+
+	// Build Webhooks configuration section
+	$webhookRoles = array( "Read", "Write", "SiteAdmin" );
+	$webhookMethods = array( "GET", "POST", "PUT", "PATCH", "DELETE" );
+	$webhookUiTypes = array( "button", "tab" );
+	$webhookConnectors = array( "Http", "OCS" );
+	$webhookPages = array( "devices.php" );
+
+	$webhookRows = "";
+	$webhookList = class_exists( "Webhook" ) ? Webhook::getWebhookList() : array();
+	foreach ( $webhookList as $wh ) {
+		$whID = $wh->WebhookID;
+		$viewRoles = WebhookPolicy::parseRoles( $wh->ViewRoles );
+		$executeRoles = WebhookPolicy::parseRoles( $wh->ExecuteRoles );
+
+		$webhookRows .= '<div>
+				<div><input type="text" name="Webhook['.$whID.'][Name]" value="'.htmlspecialchars( $wh->Name, ENT_QUOTES ).'"></div>
+				<div><input type="checkbox" name="Webhook['.$whID.'][Enabled]"'.( $wh->Enabled ? ' checked' : '' ).'></div>
+				<div><select name="Webhook['.$whID.'][Page]">';
+		foreach ( $webhookPages as $page ) {
+			$selected = ( $wh->Page == $page ) ? ' selected' : '';
+			$webhookRows .= '<option value="'.$page.'"'.$selected.'>'.$page.'</option>';
+		}
+		$webhookRows .= '</select></div>
+				<div><select name="Webhook['.$whID.'][UIType]">';
+		foreach ( $webhookUiTypes as $type ) {
+			$selected = ( strtolower( $wh->UIType ) == $type ) ? ' selected' : '';
+			$webhookRows .= '<option value="'.$type.'"'.$selected.'>'.$type.'</option>';
+		}
+		$webhookRows .= '</select></div>
+				<div><select name="Webhook['.$whID.'][Method]">';
+		foreach ( $webhookMethods as $method ) {
+			$selected = ( strtoupper( $wh->Method ) == $method ) ? ' selected' : '';
+			$webhookRows .= '<option value="'.$method.'"'.$selected.'>'.$method.'</option>';
+		}
+		$webhookRows .= '</select></div>
+				<div><input type="text" name="Webhook['.$whID.'][Endpoint]" value="'.htmlspecialchars( $wh->Endpoint, ENT_QUOTES ).'"></div>
+				<div><input type="text" name="Webhook['.$whID.'][AllowlistHosts]" value="'.htmlspecialchars( $wh->AllowlistHosts, ENT_QUOTES ).'"></div>
+				<div><input type="number" name="Webhook['.$whID.'][Timeout]" value="'.intval( $wh->Timeout ).'"></div>
+				<div>';
+		foreach ( $webhookRoles as $role ) {
+			$checked = in_array( $role, $viewRoles ) ? ' checked' : '';
+			$webhookRows .= '<label><input type="checkbox" name="Webhook['.$whID.'][ViewRoles][]" value="'.$role.'"'.$checked.'> '.$role.'</label> ';
+		}
+		$webhookRows .= '</div>
+				<div>';
+		foreach ( $webhookRoles as $role ) {
+			$checked = in_array( $role, $executeRoles ) ? ' checked' : '';
+			$webhookRows .= '<label><input type="checkbox" name="Webhook['.$whID.'][ExecuteRoles][]" value="'.$role.'"'.$checked.'> '.$role.'</label> ';
+		}
+		$webhookRows .= '</div>
+				<div><select name="Webhook['.$whID.'][Connector]">';
+		foreach ( $webhookConnectors as $connector ) {
+			$selected = ( strtoupper( $wh->Connector ) == $connector ) ? ' selected' : '';
+			$webhookRows .= '<option value="'.$connector.'"'.$selected.'>'.$connector.'</option>';
+		}
+		$webhookRows .= '</select></div>
+				<div><input type="password" name="Webhook['.$whID.'][SecretValue]" value=""></div>
+				<div>
+					<button type="submit" name="WebhookAction" value="update:'.$whID.'">'.__("Update").'</button>
+					<button type="submit" name="WebhookAction" value="delete:'.$whID.'">'.__("Delete").'</button>
+				</div>
+			</div>';
+	}
+
+	$webhookNewRow = '<div>
+			<div><input type="text" name="WebhookNew[Name]" value=""></div>
+			<div><input type="checkbox" name="WebhookNew[Enabled]" checked></div>
+			<div><select name="WebhookNew[Page]">';
+	foreach ( $webhookPages as $page ) {
+		$webhookNewRow .= '<option value="'.$page.'">'.$page.'</option>';
+	}
+	$webhookNewRow .= '</select></div>
+			<div><select name="WebhookNew[UIType]">';
+	foreach ( $webhookUiTypes as $type ) {
+		$webhookNewRow .= '<option value="'.$type.'">'.$type.'</option>';
+	}
+	$webhookNewRow .= '</select></div>
+			<div><select name="WebhookNew[Method]">';
+	foreach ( $webhookMethods as $method ) {
+		$webhookNewRow .= '<option value="'.$method.'">'.htmlspecialchars( $method, ENT_QUOTES ).'</option>';
+	}
+	$webhookNewRow .= '</select></div>
+			<div><input type="text" name="WebhookNew[Endpoint]" value=""></div>
+			<div><input type="text" name="WebhookNew[AllowlistHosts]" value=""></div>
+			<div><input type="number" name="WebhookNew[Timeout]" value="10"></div>
+			<div>';
+	foreach ( $webhookRoles as $role ) {
+		$webhookNewRow .= '<label><input type="checkbox" name="WebhookNew[ViewRoles][]" value="'.$role.'" checked> '.$role.'</label> ';
+	}
+	$webhookNewRow .= '</div>
+			<div>';
+	foreach ( $webhookRoles as $role ) {
+		$checked = in_array( $role, array( "Write", "SiteAdmin" ) ) ? ' checked' : '';
+		$webhookNewRow .= '<label><input type="checkbox" name="WebhookNew[ExecuteRoles][]" value="'.$role.'"'.$checked.'> '.$role.'</label> ';
+	}
+	$webhookNewRow .= '</div>
+			<div><select name="WebhookNew[Connector]">';
+	foreach ( $webhookConnectors as $connector ) {
+		$webhookNewRow .= '<option value="'.$connector.'">'.$connector.'</option>';
+	}
+	$webhookNewRow .= '</select></div>
+			<div><input type="password" name="WebhookNew[SecretValue]" value=""></div>
+			<div>
+				<button type="submit" name="WebhookAction" value="create">'.__("Create").'</button>
+			</div>
+		</div>';
+
+	$webhookSection = '<div id="webhooks">
+			<h3>'.__("Webhooks").'</h3>
+			<div class="table">
+				<div><div>'.__("AllowlistHosts should be a comma-separated list of hostnames.").'</div></div>
+			</div>';
+	if ( $webhookmessage > "" ) {
+		$webhookSection .= '<div class="table"><div><div>'.htmlspecialchars( $webhookmessage, ENT_QUOTES ).'</div></div></div>';
+	}
+	$webhookSection .= '<div class="table" id="webhook-admin">
+				<div>
+					<div>'.__("Name").'</div>
+					<div>'.__("Enabled").'</div>
+					<div>'.__("Page").'</div>
+					<div>'.__("UI").'</div>
+					<div>'.__("Method").'</div>
+					<div>'.__("Endpoint").'</div>
+					<div>'.__("AllowlistHosts").'</div>
+					<div>'.__("Timeout").'</div>
+					<div>'.__("View Roles").'</div>
+					<div>'.__("Execute Roles").'</div>
+					<div>'.__("Connector").'</div>
+					<div>'.__("Secret").'</div>
+					<div>'.__("Actions").'</div>
+				</div>
+				'.$webhookRows.'
+				'.$webhookNewRow.'
+			</div>
+		</div>';
 
 	// Build list of media types
 	$mediatypes="";
@@ -1991,6 +2205,7 @@ echo '<div class="main">
 			<li><a href="#reporting">',__("Reporting"),'</a></li>
 			<li><a href="#tt">',__("ToolTips"),'</a></li>
 			<li><a href="#cc">',__("Cabling"),'</a></li>
+			<li><a href="#webhooks">',__("Webhooks"),'</a></li>
 			<li><a href="#dca">',__("Custom Device Attributes"),'</a></li>
 			<li><a href="#mappers">',__("Attribute Mapping"),'</a></li>
 			<li><a href="#ldap">',__("OIDC/LDAP"),'</a></li>
@@ -2734,6 +2949,7 @@ echo '<div class="main">
 				</div>
 			</div> <!-- end table -->
 		</div>
+		',$webhookSection,'
 		<div id="dca">
 			<h3>',__("Custom Device Attributes"),'</h3>
 			<div class="table" id="customattrs">

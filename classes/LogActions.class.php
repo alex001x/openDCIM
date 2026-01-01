@@ -166,6 +166,9 @@ class LogActions {
 			case "Projects":
 				$log->ObjectID=$object->ProjectID;
 				break;
+			case "Webhook":
+				$log->ObjectID=$object->WebhookID;
+				break;
 			case "TemplatePorts":
 				$log->ObjectID=$object->TemplateID;
 				$log->ChildID=$object->PortNumber;
