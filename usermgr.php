@@ -273,10 +273,14 @@ $(document).ready(function(){
     $('#dcacl-table').on('change', '.acl-read, .acl-write, .acl-delete', function(){
         var $row=$(this).closest('tr');
         var r=$row.find('.acl-read'), w=$row.find('.acl-write'), d=$row.find('.acl-delete');
+        var $self=$(this), isRead=$self.hasClass('acl-read'), isWrite=$self.hasClass('acl-write'), isDelete=$self.hasClass('acl-delete');
+        // When a parent right is unchecked, drop dependent rights in the same row.
+        if(!$self.is(':checked')){
+            if(isRead){ w.prop('checked', false); d.prop('checked', false); }
+            else if(isWrite){ d.prop('checked', false); }
+        }
         if(d.is(':checked')){ w.prop('checked', true); r.prop('checked', true); }
         if(w.is(':checked')){ r.prop('checked', true); }
-        if(!r.is(':checked')){ w.prop('checked', false); d.prop('checked', false); }
-        if(!w.is(':checked')){ d.prop('checked', false); }
         updateContainerStates();
     });
 
