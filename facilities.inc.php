@@ -49,5 +49,7 @@ if(extension_loaded('snmp')){
 	require_once('OSS_SNMP/SNMP.php');
 }
 
+// Resolve rights helper functions, DCACL is loaded before the call 
+require_once( "resolveRights.php" );
 
 ?>
