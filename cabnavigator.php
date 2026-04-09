@@ -1,7 +1,73 @@
 <?php
 	require_once( "db.inc.php" );
 	require_once( "facilities.inc.php" );
+	require_once( "classes/DCACL.class.php" );
 
+	if ( !function_exists('resolveRightsFromCabinet') ) {
+		function resolveRightsFromCabinet( $person, $cabinetID = null, $deviceID = null, $requireWrite = false, $requireDelete = false ) {
+			$dcid = null;
+			if ( $deviceID ) {
+				$dev = new Device();
+				$dev->DeviceID = intval($deviceID);
+				if ( $dev->GetDevice() ) {
+					if ( $dev->Cabinet > 0 ) {
+						$cab = new Cabinet();
+						$cab->CabinetID = $dev->Cabinet;
+						if ( $cab->GetCabinet() ) {
+							$dcid = $cab->DataCenterID;
+						}
+					} elseif ( $dev->Cabinet < 0 ) {
+						$dcid = intval($dev->Position);
+					}
+				}
+			} elseif ( $cabinetID ) {
+				$cab = new Cabinet();
+				$cab->CabinetID = intval($cabinetID);
+				if ( $cab->GetCabinet() ) {
+					$dcid = $cab->DataCenterID;
+				}
+			} elseif ( isset($GLOBALS['dcid']) ) {
+				$tmp = intval($GLOBALS['dcid']);
+				if ( $tmp > 0 ) {
+					$dcid = $tmp;
+				}
+			}
+
+			$siteadmin = ( $person->SiteAdmin ) ? true : false;
+			$read = true;
+			$write = true;
+			$delete = true;
+			if ( !$siteadmin && $dcid > 0 ) {
+				if ( class_exists('DCACL') ) {
+					$read = DCACL::hasRight($person->UserID, $dcid, DCACL::RIGHT_READ);
+					$write = DCACL::hasRight($person->UserID, $dcid, DCACL::RIGHT_WRITE);
+					$delete = DCACL::hasRight($person->UserID, $dcid, DCACL::RIGHT_DELETE);
+				} else {
+					$read = false;
+					$write = false;
+					$delete = false;
+				}
+			}
+
+			$deny = false;
+			if ( $requireDelete ) {
+				$deny = !$delete;
+			} elseif ( $requireWrite ) {
+				$deny = !$write;
+			} else {
+				$deny = !$read;
+			}
+
+			return array(
+				'dcid' => $dcid,
+				'read' => $siteadmin ? true : $read,
+				'write' => $siteadmin ? true : $write,
+				'delete' => $siteadmin ? true : $delete,
+				'siteadmin' => $siteadmin,
+				'deny' => $deny
+			);
+		}
+	}
 	$subheader=__("Data Center Cabinet Inventory");
 
 	if((isset($_REQUEST["cabinetid"]) && (intval($_REQUEST["cabinetid"])==0)) || !isset($_REQUEST["cabinetid"])){
@@ -94,9 +160,13 @@ function renderUnassignedTemplateOwnership($noTemplFlag, $noOwnerFlag, $device) 
 	return array($noTemplFlag, $noOwnerFlag, $retstr);
 }
 
+	$cabinetid=intval($_REQUEST["cabinetid"]);
 	$cab=new Cabinet();
-	$cab->CabinetID=$_REQUEST["cabinetid"];
-	$cab->GetCabinet();
+	$cab->CabinetID=$cabinetid;
+	if(!$cab->GetCabinet()){
+		header('Location: '.redirect());
+		exit;
+	}
 
 	// Check to see if this user is allowed to see anything in ihere
 	if(!$person->SiteAdmin && !$person->ReadAccess && $cab->Rights=='None' && !array_intersect($person->isMemberOf(),Cabinet::GetOccupants($cab->CabinetID))){
@@ -105,9 +175,24 @@ function renderUnassignedTemplateOwnership($noTemplFlag, $noOwnerFlag, $device) 
 		exit;
 	}
 
+	// Enforce per-DC ACL: READ for page access, WRITE for modifications
+	$dcRights = resolveRightsFromCabinet($person, $cab->CabinetID, null);
+	$dcaclReadAllowed = $dcRights['read'];
+	$dcaclWriteAllowed = $dcRights['write'];
+	if ( $dcRights['deny'] ) {
+		$errmsg = urlencode(__('You do not have permission to access this datacenter. Please contact your administrator.'));
+		header('Location: '.redirect('index.php?msg='.$errmsg));
+		exit;
+	}
+
 	// If you're deleting the cabinet, no need to pull in the rest of the information, so get it out of the way
 	// Only a site administrator can create or delete a cabinet
 	if(isset($_POST["delete"]) && $_POST["delete"]=="yes" && $person->SiteAdmin ) {
+		if ( !$dcaclWriteAllowed ) {
+			header('Content-Type: application/json');
+			echo json_encode(array('error'=>true,'message'=>__("Access Denied")));
+			exit;
+		}
 		$cab->DeleteCabinet();
 		header('Content-Type: application/json');
 		echo json_encode(array('url' => redirect("dc_stats.php?dc=$cab->DataCenterID")));
@@ -124,9 +209,9 @@ function renderUnassignedTemplateOwnership($noTemplFlag, $noOwnerFlag, $device) 
 	$tempDept=new Department();
 	$dc=new DataCenter();
 
-	$dcID=$cab->DataCenterID;
-	$dc->DataCenterID=$dcID;
-	$dc->GetDataCenterbyID();
+$dcID=$cab->DataCenterID;
+$dc->DataCenterID=$dcID;
+$dc->GetDataCenterbyID();
 
 	if ( !$person->SiteAdmin && ($config->ParameterArray["GDPRCountryIsolation"] == "enabled" && ( $dc->countryCode != $person->countryCode ) ) ) {
 		error_log( "GDPR Isolation Enabled:  User country: ".$person->countryCode." denied access to Data Center country: ".$dc->countryCode );
@@ -138,6 +223,11 @@ function renderUnassignedTemplateOwnership($noTemplFlag, $noOwnerFlag, $device) 
 
 	// You just have WriteAccess in order to perform/certify a rack audit
 	if(isset($_POST["audit"]) && $_POST["audit"]=="yes" && $person->CanWrite($cab->AssignedTo)){
+		if ( !$dcaclWriteAllowed ) {
+			header('Content-Type: application/json');
+			echo json_encode(array('error'=>true,'message'=>__("Access Denied")));
+			exit;
+		}
 		$audit->Comments=sanitize($_POST["comments"]);
 		// Log the response
 		$audit->CertifyAudit();
@@ -363,7 +453,7 @@ $body.='<div id="infopanel">
 		}
 	}
 
-	if($person->CanWrite($cab->AssignedTo)){
+	if($person->CanWrite($cab->AssignedTo) && $dcaclWriteAllowed){
 		$body.="\n\t\t<ul class=\"nav\"><a href=\"devices.php?action=new&CabinetID=$cab->CabinetID&DeviceType=CDU\"><li>".__("Add CDU")."</li></a></ul>\n";
 	}
 
@@ -377,7 +467,7 @@ $body.='<div id="infopanel">
 		$body.="\t\t<a href=\"devices.php?DeviceID=$Sensor->DeviceID\">$Sensor->Label</a><br>\n";
 	}
 
-	if($person->CanWrite($cab->AssignedTo)){
+	if($person->CanWrite($cab->AssignedTo) && $dcaclWriteAllowed){
 		$body.="\n\t\t<ul class=\"nav\"><a href=\"devices.php?action=new&CabinetID=$cab->CabinetID&DeviceType=Sensor\"><li>".__("Add Sensor")."</li></a></ul>\n";
 	}
 
@@ -390,7 +480,7 @@ $body.='<div id="infopanel">
             $body .= renderCabinetProps($cab, $audit, $AuditorName);
         }
 	    $body.="\t\t<ul class=\"nav\">";
-        if($person->CanWrite($cab->AssignedTo)){
+        if($person->CanWrite($cab->AssignedTo) && $dcaclWriteAllowed){
             $body.="
 			<a href=\"#\" id=\"verifyaudit\"><li>".__("Certify Audit")."</li></a>
 			<a href=\"devices.php?action=new&CabinetID=$cab->CabinetID\"><li>".__("Add Device")."</li></a>

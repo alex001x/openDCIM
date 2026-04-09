@@ -196,6 +196,34 @@ class Container {
 		return $containerList;
 	}
 
+	private function HasAccessibleDescendantDC($allowedSet){
+		global $dbh;
+		if ( !is_array($allowedSet) || empty($allowedSet) ) {
+			return false;
+		}
+		$allowedIDs = array_keys($allowedSet);
+		$desc = array(intval($this->ContainerID));
+		$idx = 0;
+		while ($idx < count($desc)) {
+			$cur = $desc[$idx++];
+			$st = $dbh->prepare('SELECT ContainerID FROM fac_Container WHERE ParentID=:pid');
+			$st->execute(array(':pid'=>$cur));
+			while($row = $st->fetch()){
+				$desc[] = intval($row['ContainerID']);
+			}
+		}
+		$desc = array_values(array_unique($desc));
+		$placeholders = implode(',', array_fill(0, count($desc), '?'));
+		$allowedPlaceholders = implode(',', array_fill(0, count($allowedIDs), '?'));
+		if($placeholders=='' || $allowedPlaceholders==''){
+			return false;
+		}
+		$sql="SELECT DataCenterID FROM fac_DataCenter WHERE ContainerID IN ($placeholders) AND DataCenterID IN ($allowedPlaceholders) LIMIT 1";
+		$st = $dbh->prepare($sql);
+		$st->execute(array_merge($desc, $allowedIDs));
+		return ($st->fetch()!==false);
+	}
+
 	function GetChildDCList(){
 		$this->MakeSafe();
 
@@ -223,6 +251,18 @@ class Container {
 	}
 
 	private function AddContainerToTree($lev=0) {
+		global $person;
+		static $allowedSet=null;
+		static $aclChecked=false;
+		if ( !$aclChecked ) {
+			$aclChecked=true;
+			if ( class_exists('DCACL') && isset($person) && !$person->SiteAdmin && isset($person->UserID) && $person->UserID!=='' ) {
+				$allowedSet = array_flip(DCACL::getAllowedDCIDs($person->UserID, DCACL::RIGHT_READ));
+			}
+		}
+		if ( is_array($allowedSet) && !$this->HasAccessibleDescendantDC($allowedSet) ) {
+			return '';
+		}
 		$tree="";
 		$container_opened=false;
 		
@@ -284,9 +324,14 @@ class Container {
 
 	function MakeContainerImage(){
 		global $config;
+		global $person;
 		$mapHTML="";
 		$mapfile="";
 		$tam=50;
+		$allowedSet=null;
+		if ( class_exists('DCACL') && isset($person) && !$person->SiteAdmin && isset($person->UserID) && $person->UserID!=='' ) {
+			$allowedSet = array_flip(DCACL::getAllowedDCIDs($person->UserID, DCACL::RIGHT_READ));
+		}
 	 
 		if ( strlen($this->DrawingFileName) > 0 ) {
 			$mapfile = $config->ParameterArray['drawingpath'] . $this->DrawingFileName;
@@ -306,6 +351,9 @@ class Container {
 			$cList=$this->GetChildContainerList();
 			if ( count( $cList ) > 0 ) {
 				foreach($cList as $cID=>$container){
+					if ( is_array($allowedSet) && !$container->HasAccessibleDescendantDC($allowedSet) ) {
+						continue;
+					}
 					if (is_null($container->MapX) || $container->MapX==0 
 						|| is_null($container->MapY) || $container->MapY==0 ){
 						$mapHTML.="<div>\n";

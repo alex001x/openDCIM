@@ -1051,6 +1051,7 @@ class Device {
 
 	function GetDevice($filterrights=true){
 		global $dbh;
+		global $person;
 	
 		$this->MakeSafe();
 	
@@ -1061,6 +1062,21 @@ class Device {
 		$sql="SELECT * FROM fac_Device WHERE DeviceID=$this->DeviceID;";
 
 		if($devRow=$dbh->query($sql)->fetch()){
+			if ( isset($person) && !$person->SiteAdmin && isset($person->UserID) && $person->UserID!=='' && class_exists('DCACL') ) {
+				$dcid = 0;
+				$cabinetid = intval($devRow['Cabinet']);
+				if ( $cabinetid > 0 ) {
+					$dcRow = $dbh->query("SELECT DataCenterID FROM fac_Cabinet WHERE CabinetID=$cabinetid")->fetch();
+					if ( $dcRow ) {
+						$dcid = intval($dcRow['DataCenterID']);
+					}
+				} elseif ( $cabinetid < 0 ) {
+					$dcid = intval($devRow['Position']);
+				}
+				if ( $dcid > 0 && !DCACL::hasRight($person->UserID, $dcid, DCACL::RIGHT_READ) ) {
+					return false;
+				}
+			}
 			foreach(Device::RowToObject($devRow,$filterrights) as $prop => $value){
 				$this->$prop=$value;
 			}
@@ -1079,6 +1095,21 @@ class Device {
 			$dcLimit = "";
 		} else {
 			$dcLimit = "and b.DataCenterID=" . $datacenterid;
+		}
+
+		if ( isset($person) && !$person->SiteAdmin && isset($person->UserID) && $person->UserID!=='' && class_exists('DCACL') ) {
+			$allowedIDs = DCACL::getAllowedDCIDs($person->UserID, DCACL::RIGHT_READ);
+			if ( empty($allowedIDs) ) {
+				return array();
+			}
+			if ( $datacenterid !== null ) {
+				if ( !in_array(intval($datacenterid), $allowedIDs) ) {
+					return array();
+				}
+			} else {
+				$idList = implode(',', array_map('intval', $allowedIDs));
+				$dcLimit .= " and b.DataCenterID in ($idList)";
+			}
 		}
 
 		if ( !$person->SiteAdmin and $config->ParameterArray["GDPRCountryIsolation"] == "enabled" ) {

@@ -1,6 +1,7 @@
 <?php
 	require_once( "db.inc.php" );
 	require_once( "facilities.inc.php" );
+	require_once( "classes/DCACL.class.php" );
 
 	$subheader=__("Map Selector");
 
@@ -12,11 +13,17 @@
 	$dc=new DataCenter();
 	$cab=new Cabinet();
 
-	if ( isset( $_REQUEST['cabinetid'] )) {
+	$cabinetid = (isset($_REQUEST['cabinetid'])) ? intval($_REQUEST['cabinetid']) : 0;
+	$panelid = (isset($_REQUEST['panelid'])) ? intval($_REQUEST['panelid']) : 0;
+
+	if ( $cabinetid > 0 ) {
 		$cab=new Cabinet();
 
-		$cab->CabinetID=$_REQUEST["cabinetid"];
-		$cab->GetCabinet();
+		$cab->CabinetID=$cabinetid;
+		if ( !$cab->GetCabinet() ) {
+			header('Location: '.redirect());
+			exit;
+		}
 
 		$MapX1 = $cab->MapX1;
 		$MapX2 = $cab->MapX2;
@@ -28,8 +35,11 @@
 		$dc->DataCenterID=$cab->DataCenterID;
 	} else {
 		$pan = new PowerPanel();
-		$pan->PanelID = $_REQUEST['panelid'];
-		$pan->getPanel();
+		$pan->PanelID = $panelid;
+		if ( !$pan->getPanel() ) {
+			header('Location: '.redirect());
+			exit;
+		}
 
 		$MapX1 = $pan->MapX1;
 		$MapX2 = $pan->MapX2;
@@ -41,9 +51,26 @@
 		$dc->DataCenterID = $pan->MapDataCenterID;
 	}
 
+	// DCACL READ required to view map for this datacenter
+	if ( !$person->SiteAdmin && class_exists('DCACL') ) {
+		if ( $dc->DataCenterID <= 0 || !DCACL::hasRight($person->UserID, $dc->DataCenterID, DCACL::RIGHT_READ) ) {
+			$errmsg = urlencode(__('Access Denied'));
+			header('Location: '.redirect('index.php?msg='.$errmsg));
+			exit;
+		}
+	}
+
 	$dc->GetDataCenter();
 
 	if(isset($_REQUEST["action"])&&($_REQUEST["action"]=="Submit")){
+		// DCACL WRITE required for map updates
+		if ( !$person->SiteAdmin && class_exists('DCACL') ) {
+			if ( $dc->DataCenterID <= 0 || !DCACL::hasRight($person->UserID, $dc->DataCenterID, DCACL::RIGHT_WRITE) ) {
+				$errmsg = urlencode(__('Access Denied'));
+				header('Location: '.redirect('index.php?msg='.$errmsg));
+				exit;
+			}
+		}
 		if ( isset( $_REQUEST['cabinetid'] )) {
 			$cab->MapX1=intval($_REQUEST["x1"]);
 			$cab->MapX2=intval($_REQUEST["x2"]);

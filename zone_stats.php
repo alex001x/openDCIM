@@ -1,6 +1,7 @@
 <?php
 	require_once("db.inc.php");
 	require_once("facilities.inc.php");
+	require_once("classes/DCACL.class.php");
 
 	$subheader=__("Zone Statistics");
 
@@ -52,15 +53,28 @@
 
 	// explain later
 	if(isset($_POST['dc']) && (isset($_POST['getobjects']) || isset($_POST['getoverview']))){
+		$dcid=intval($_POST['dc']);
+		if ( $dcid <= 0 ) {
+			header('Location: '.redirect());
+			exit;
+		}
+		// Enforce per-DC ACL: non-admins must have READ on this datacenter
+		if ( !$person->SiteAdmin && class_exists('DCACL') ) {
+			if ( !DCACL::hasRight($person->UserID, $dcid, DCACL::RIGHT_READ) ) {
+				$errmsg = urlencode(__('Access Denied'));
+				header('Location: '.redirect('index.php?msg='.$errmsg));
+				exit;
+			}
+		}
 		$payload=array();
 		if(isset($_POST['getobjects'])){
-			$cab->DataCenterID=$_POST['dc'];
+			$cab->DataCenterID=$dcid;
 			$cab->GetCabinet();
 			$zone=new Zone();
 			$zone->DataCenterID=$cab->DataCenterID;
-			$payload=array('cab'=>$cab->ListCabinetsByDC(true,true),'panel'=>PowerPanel::getPanelsForMap($_POST['dc']),'zone'=>$zone->GetZonesByDC(true));
+			$payload=array('cab'=>$cab->ListCabinetsByDC(true,true),'panel'=>PowerPanel::getPanelsForMap($dcid),'zone'=>$zone->GetZonesByDC(true));
 		}else{
-			$dc->DataCenterID=$_POST['dc'];
+			$dc->DataCenterID=$dcid;
 			$dc->GetDataCenterByID();
 			$payload=$dc->GetOverview();
 		}
@@ -76,10 +90,18 @@
 		exit;
 	}
 
-	$zone->ZoneID=$_GET["zone"];
+	$zone->ZoneID=intval($_GET["zone"]);
 	if (!$zone->GetZone()){
 		header('Location: '.redirect());
 		exit;
+	}
+	// Enforce per-DC ACL: non-admins must have READ on this datacenter
+	if ( !$person->SiteAdmin && class_exists('DCACL') ) {
+		if ( $zone->DataCenterID <= 0 || !DCACL::hasRight($person->UserID, $zone->DataCenterID, DCACL::RIGHT_READ) ) {
+			$errmsg = urlencode(__('Access Denied'));
+			header('Location: '.redirect('index.php?msg='.$errmsg));
+			exit;
+		}
 	}
 	$zoneStats=$zone->GetZoneStatistics();
 	$dc->DataCenterID=$zone->DataCenterID;

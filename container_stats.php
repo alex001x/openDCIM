@@ -1,6 +1,7 @@
 <?php
 	require_once("db.inc.php");
 	require_once("facilities.inc.php");
+	require_once("classes/DCACL.class.php");
 
 	$subheader=__("Data Center Statistics");
 
@@ -12,8 +13,42 @@
 
 	$c=New Container();
 	
-	$c->ContainerID=$_GET["container"];
-	$c->GetContainer();
+$c->ContainerID=$_GET["container"];
+$c->GetContainer();
+
+// Enforce per-Container ACL for non-admins: require READ on at least one descendant DC
+if ( !$person->SiteAdmin && class_exists('DCACL') ) {
+	$allowedIDs = DCACL::getAllowedDCIDs($person->UserID, DCACL::RIGHT_READ);
+	if ( empty($allowedIDs) ) {
+		$errmsg = urlencode(__('Access Denied'));
+		header('Location: '.redirect('index.php?msg='.$errmsg));
+		exit;
+	}
+	// Build list of descendant ContainerIDs
+	$desc = array(intval($c->ContainerID));
+	$idx = 0;
+	while ($idx < count($desc)) {
+		$cur = $desc[$idx++];
+		$st = $dbh->prepare('SELECT ContainerID FROM fac_Container WHERE ParentID=:pid');
+		$st->execute(array(':pid'=>$cur));
+		while($row = $st->fetch()){
+			$desc[] = intval($row['ContainerID']);
+		}
+	}
+	$desc = array_values(array_unique($desc));
+	$placeholders = implode(',', array_fill(0, count($desc), '?'));
+	$allowedPlaceholders = implode(',', array_fill(0, count($allowedIDs), '?'));
+	if($placeholders!='' && $allowedPlaceholders!=''){
+		$sql = 'SELECT DataCenterID FROM fac_DataCenter WHERE ContainerID IN ('.$placeholders.') AND DataCenterID IN ('.$allowedPlaceholders.') LIMIT 1';
+		$st = $dbh->prepare($sql);
+		$st->execute(array_merge($desc, $allowedIDs));
+		if ( !$st->fetch() ) {
+			$errmsg = urlencode(__('You do not have permission to access this datacenter. Please contact your administrator.'));
+			header('Location: '.redirect('index.php?msg='.$errmsg));
+			exit;
+		}
+	}
+}
 
 	if ( !$person->SiteAdmin && ($config->ParameterArray["GDPRCountryIsolation"] == "enabled" && ( $c->countryCode != $person->countryCode ) ) ) {
 		error_log( "GDPR Isolation Enabled:  User country: ".$person->countryCode." denied access to Container country: ".$c->countryCode );

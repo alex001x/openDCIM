@@ -1,6 +1,7 @@
 <?php
 	require_once( 'db.inc.php' );
 	require_once( 'facilities.inc.php' );
+	require_once( 'classes/DCACL.class.php' );
 
 	$subheader=__("Data Center Cabinet Inventory");
 
@@ -16,9 +17,22 @@
 	$write=($person->WriteAccess)?true:false;
 
 	if(isset($_REQUEST['cabinetid'])){
-		$cab->CabinetID=(isset($_POST['cabinetid'])?$_POST['cabinetid']:$_GET['cabinetid']);
-		$cab->GetCabinet();
-		$write=($person->canWrite($cab->AssignedTo))?true:$write;
+		$cabinetid=(isset($_POST['cabinetid'])?intval($_POST['cabinetid']):intval($_GET['cabinetid']));
+		$cab->CabinetID=$cabinetid;
+		if($cabinetid>0 && $cab->GetCabinet()){
+			// Enforce per-DC ACL: non-admins must have READ on this datacenter to view cabinet
+			if(!$person->SiteAdmin){
+				$dc = new DataCenter();
+				$dc->DataCenterID = $cab->DataCenterID;
+				$dc->GetDataCenterbyID();
+				if(class_exists('DCACL') && !DCACL::hasRight($person->UserID, $dc->DataCenterID, DCACL::RIGHT_READ)){
+					$errmsg = urlencode(__('You do not have permission to access this datacenter. Please contact your administrator.'));
+					header('Location: '.redirect('index.php?msg='.$errmsg));
+					exit;
+				}
+			}
+			$write=($person->canWrite($cab->AssignedTo))?true:$write;
+		}
 	}
 
 	// If you're deleting the cabinet, no need to pull in the rest of the information, so get it out of the way
@@ -60,6 +74,15 @@
 		$cab->Notes=trim($_POST['notes']);
 		$cab->Notes=($cab->Notes=="<br>")?"":$cab->Notes;
 		$cab->U1Position=$_POST['u1position'];
+
+		// Enforce DCACL WRITE for cabinet changes (create/update)
+		if(class_exists('DCACL') && !$person->SiteAdmin && isset($person->UserID) && $person->UserID!==''){
+			if(!DCACL::hasRight($person->UserID, $cab->DataCenterID, DCACL::RIGHT_WRITE)){
+				$errmsg = urlencode(__('Access Denied'));
+				header('Location: '.redirect('index.php?msg='.$errmsg));
+				exit;
+			}
+		}
 
 		if ( $cab->U1Position == "Default" ) {
 			$dc = new DataCenter();
@@ -103,9 +126,15 @@
 		$cab->CabinetID=null;
 		//Set DataCenterID to first DC in dcList for getting zoneList
 		$dc=new DataCenter();
-		$dcList=$dc->GetDCList();
+		$dcList=$dc->GetDCList(true);
+		if(empty($dcList)){
+			$errmsg = urlencode(__('Access Denied'));
+			header('Location: '.redirect('index.php?msg='.$errmsg));
+			exit;
+		}
 		$keys=array_keys($dcList);
-		$cab->DataCenterID=(isset($_GET['dcid']))?intval($_GET['dcid']):$keys[0];
+		$reqdcid=(isset($_GET['dcid']))?intval($_GET['dcid']):0;
+		$cab->DataCenterID=(($reqdcid>0 && isset($dcList[$reqdcid]))?$reqdcid:$keys[0]);
 		$cab->Location=null;
 		$cab->ZoneID=(isset($_GET['zoneid']))?intval($_GET['zoneid']):null;
 		$cab->CabRowID=(isset($_GET['cabrowid']))?intval($_GET['cabrowid']):null;
@@ -119,6 +148,21 @@
 
 	$deptList=$dept->GetDepartmentList();
 	$cabList=$cab->ListCabinets();
+	if(class_exists('DCACL') && !$person->SiteAdmin && isset($person->UserID) && $person->UserID!==''){
+		$allowedIDs=DCACL::getAllowedDCIDs($person->UserID, DCACL::RIGHT_READ);
+		if(!empty($allowedIDs)){
+			$allowedSet=array_flip($allowedIDs);
+			$filtered=array();
+			foreach($cabList as $c){
+				if(isset($allowedSet[intval($c->DataCenterID)])){
+					$filtered[]=$c;
+				}
+			}
+			$cabList=$filtered;
+		}else{
+			$cabList=array();
+		}
+	}
 	$sensorList = SensorTemplate::getTemplates();
 
 	if($cab->CabinetID > 0) {

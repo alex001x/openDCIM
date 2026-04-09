@@ -1,6 +1,7 @@
 <?php
 	require_once( "db.inc.php" );
 	require_once( "facilities.inc.php" );
+	require_once( "classes/DCACL.class.php" );
 
 	$subheader=__("Data Center Cabinet Inventory");
 
@@ -16,8 +17,19 @@
 	$dc=new DataCenter();
 	$cabrow=new CabRow();
 
-	$cabrow->CabRowID=$_REQUEST['row'];
-	$cabrow->GetCabRow();
+	$cabrow->CabRowID=intval($_REQUEST['row']);
+	if(!$cabrow->GetCabRow()){
+		header('Location: '.redirect());
+		exit;
+	}
+	// Enforce per-DC ACL: non-admins must have READ on this datacenter
+	if ( !$person->SiteAdmin && class_exists('DCACL') ) {
+		if ( $cabrow->DataCenterID <= 0 || !DCACL::hasRight($person->UserID, $cabrow->DataCenterID, DCACL::RIGHT_READ) ) {
+			$errmsg = urlencode(__('Access Denied'));
+			header('Location: '.redirect('index.php?msg='.$errmsg));
+			exit;
+		}
+	}
 	$cab->CabRowID=$cabrow->CabRowID;
 	$cabinets=$cab->GetCabinetsByRow();
 	$frontedge=$cabrow->GetCabRowFrontEdge();

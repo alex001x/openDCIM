@@ -1,7 +1,73 @@
 <?php
 	require_once( 'db.inc.php' );
 	require_once( 'facilities.inc.php' );
+	require_once( 'classes/DCACL.class.php' );
 
+	if ( !function_exists('resolveRightsFromCabinet') ) {
+		function resolveRightsFromCabinet( $person, $cabinetID = null, $deviceID = null, $requireWrite = false, $requireDelete = false ) {
+			$dcid = null;
+			if ( $deviceID ) {
+				$dev = new Device();
+				$dev->DeviceID = intval($deviceID);
+				if ( $dev->GetDevice() ) {
+					if ( $dev->Cabinet > 0 ) {
+						$cab = new Cabinet();
+						$cab->CabinetID = $dev->Cabinet;
+						if ( $cab->GetCabinet() ) {
+							$dcid = $cab->DataCenterID;
+						}
+					} elseif ( $dev->Cabinet < 0 ) {
+						$dcid = intval($dev->Position);
+					}
+				}
+			} elseif ( $cabinetID ) {
+				$cab = new Cabinet();
+				$cab->CabinetID = intval($cabinetID);
+				if ( $cab->GetCabinet() ) {
+					$dcid = $cab->DataCenterID;
+				}
+			} elseif ( isset($GLOBALS['dcid']) ) {
+				$tmp = intval($GLOBALS['dcid']);
+				if ( $tmp > 0 ) {
+					$dcid = $tmp;
+				}
+			}
+
+			$siteadmin = ( $person->SiteAdmin ) ? true : false;
+			$read = true;
+			$write = true;
+			$delete = true;
+			if ( !$siteadmin && $dcid > 0 ) {
+				if ( class_exists('DCACL') ) {
+					$read = DCACL::hasRight($person->UserID, $dcid, DCACL::RIGHT_READ);
+					$write = DCACL::hasRight($person->UserID, $dcid, DCACL::RIGHT_WRITE);
+					$delete = DCACL::hasRight($person->UserID, $dcid, DCACL::RIGHT_DELETE);
+				} else {
+					$read = false;
+					$write = false;
+					$delete = false;
+				}
+			}
+
+			$deny = false;
+			if ( $requireDelete ) {
+				$deny = !$delete;
+			} elseif ( $requireWrite ) {
+				$deny = !$write;
+			} else {
+				$deny = !$read;
+			}
+
+			return array(
+				'dcid' => $dcid,
+				'read' => $siteadmin ? true : $read,
+				'write' => $siteadmin ? true : $write,
+				'delete' => $siteadmin ? true : $delete,
+				'siteadmin' => $siteadmin,
+				'deny' => $deny
+			);
+		}
+	}
 	$subheader=__("Data Center Device Detail");
 
 	$dev=new Device();
@@ -642,6 +708,12 @@
 	$copy = false;
 	$copyerr=__("This device is a copy of an existing device.  Remember to set the new location before saving.");
 	$childList=array();
+	$dcaclReadAllowed=true;
+	$dcaclWriteAllowed=true;
+	$dcaclDeleteAllowed=true;
+	$dcaclReadAllowed=true;
+	$dcaclWriteAllowed=true;
+	$dcaclDeleteAllowed=true;
 
 	// This page was called from somewhere so let's do stuff.
 	// If this page wasn't called then present a blank record for device creation.
@@ -751,7 +823,27 @@
 				$write=($person->canWrite($cab->AssignedTo))?true:$write;
 				$write=($dev->Rights=="Write")?true:$write;
 
+				$dcRights = resolveRightsFromCabinet($person, null, $dev->DeviceID);
+				$dcaclReadAllowed = ( $dev->Rights != "None" && $dcRights['read'] );
+				$dcaclWriteAllowed = $dcRights['write'];
+				$dcaclDeleteAllowed = $dcRights['delete'];
+				if ( !$dcaclReadAllowed ) {
+					$errmsg = urlencode(__('Access Denied'));
+					header('Location: '.redirect('index.php?msg='.$errmsg));
+					exit;
+				}
+
 				if($dev->Rights=="Write" && $dev->DeviceID >0){
+					if ( !$dcaclWriteAllowed && in_array($_POST['action'], array('Update','Copy')) ) {
+						$errmsg = urlencode(__('Access Denied'));
+						header('Location: '.redirect('index.php?msg='.$errmsg));
+						exit;
+					}
+					if ( $_POST['action']=='Delete' && !$dcaclDeleteAllowed ) {
+						$errmsg = urlencode(__('Access Denied'));
+						header('Location: '.redirect('index.php?msg='.$errmsg));
+						exit;
+					}
 					switch($_POST['action']){
 						case 'Update':
 							// User has changed the device type from chassis to something else and has said yes
@@ -805,6 +897,12 @@
 				// but the user could have rights from the cabinet and it is checked above
 				// when the device object is populated.
 				}elseif($write && $_POST['action']=='Create'){
+					$dcCreate = resolveRightsFromCabinet($person, $dev->Cabinet, null, true, false);
+					if ( $dcCreate['deny'] ) {
+						$errmsg = urlencode(__('Access Denied'));
+						header('Location: '.redirect('index.php?msg='.$errmsg));
+						exit;
+					}
 					// Since the cabinet isn't part of the form for a child device creation
 					// it's possible to create a new child that doesn't follow the new cabinet designation
 					// we're creatig a device at this point so look up the parent just in case and match
@@ -835,6 +933,15 @@
 
 			// Finished updating devices or creating them.  Refresh the object with data from the DB
 			$dev->GetDevice();
+			$dcRights = resolveRightsFromCabinet($person, null, $dev->DeviceID);
+			$dcaclReadAllowed = ( $dev->Rights != "None" && $dcRights['read'] );
+			$dcaclWriteAllowed = $dcRights['write'];
+			$dcaclDeleteAllowed = $dcRights['delete'];
+			if ( !$dcaclReadAllowed ) {
+				$errmsg = urlencode(__('Access Denied'));
+				header('Location: '.redirect('index.php?msg='.$errmsg));
+				exit;
+			}
 
 			// Audits are either at the individual device or the full cabinet level, so grab the latest date for both
 			$cabAudit = new CabinetAudit();
@@ -972,6 +1079,26 @@
 
 	$templ->TemplateID=$dev->TemplateID;
 	$templ->GetTemplateByID();
+
+	$cabinetSelectList=$cab->GetCabinetSelectList();
+	if ( $dev->DeviceID == 0 && class_exists('DCACL') && !$person->SiteAdmin ) {
+		$allowedDCIDs = DCACL::getAllowedDCIDs($person->UserID, DCACL::RIGHT_WRITE);
+		$allowedDCIDs = array_map('intval', $allowedDCIDs);
+		$selectedCabinet = intval($dev->Cabinet);
+		$storageSelected = ($selectedCabinet == -1) ? ' selected' : '';
+
+		$cabinetSelectList='<select name="CabinetID" id="CabinetID"><option value="-1"'.$storageSelected.'>'.__("Storage Room").'</option>';
+		if ( !empty($allowedDCIDs) ) {
+			$sql="SELECT dc.Name, cab.CabinetID, cab.Location, cab.AssignedTo FROM fac_DataCenter dc, fac_Cabinet cab WHERE dc.DataCenterID=cab.DataCenterID AND cab.DataCenterID IN (".implode(',', $allowedDCIDs).") ORDER BY dc.Name ASC, cab.Location ASC, LENGTH(cab.Location);";
+			foreach($dbh->query($sql) as $selectRow){
+				if($person->canWrite($selectRow["AssignedTo"])){
+					$selected=($selectRow["CabinetID"]==$selectedCabinet)?' selected':'';
+					$cabinetSelectList.="<option value=\"{$selectRow["CabinetID"]}\"$selected>{$selectRow["Name"]} / {$selectRow["Location"]}</option>";
+				}
+			}
+		}
+		$cabinetSelectList.='</select>';
+	}
 
 	if ( $dev->DeviceID == 0 ) {
 		$dev->Status="Reserved";
@@ -2008,7 +2135,7 @@ echo '
 			<div><label for="CabinetID">',__("Cabinet"),'</label></div>';
 
 		if($dev->ParentDevice==0){
-			print "\t\t\t<div>".$cab->GetCabinetSelectList()."</div>\n";
+			print "\t\t\t<div>".$cabinetSelectList."</div>\n";
 		}else{
 			print "\t\t\t<div>$cab->Location<input type=\"hidden\" name=\"CabinetID\" value=$cab->CabinetID></div>
 		</div>
@@ -2699,15 +2826,17 @@ print "<!--				<div>".__("Panel")."</div> -->
 <?php
 	if($write){
 		if($dev->DeviceID >0){
-			echo '			<button type="submit" name="action" value="Update">',__("Update"),'</button>
-			<button type="submit" name="action" value="Copy">', __("Copy"), '</button>
-			<button type="button" name="audit">',__("Certify Audit"),'</button>';
+			if($dcaclWriteAllowed){
+				echo '			<button type="submit" name="action" value="Update">',__("Update"),'</button>
+			<button type="submit" name="action" value="Copy">', __("Copy"), '</button>';
+			}
+			echo '			<button type="button" name="audit">',__("Certify Audit"),'</button>';
 		} else {
 			echo '			<button type="submit" name="action" value="Create">',__("Create"),'</button>';
 		}
 	}
 	// Delete rights are seperate from write rights
-	if(($write || $person->DeleteAccess) && $dev->DeviceID >0){
+	if(($write || $person->DeleteAccess) && $dev->DeviceID >0 && $dcaclDeleteAllowed){
 		echo '		<button type="button" name="action" value="Delete">',__("Delete"),'</button>';
 	}
 	if($dev->DeviceID >0){
